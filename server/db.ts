@@ -332,3 +332,145 @@ export async function get7DayPickHistory(userId: number) {
     ))
     .orderBy(desc(dailyPicks.pickedAt));
 }
+
+// Import DR types at top of file
+// import { drPicks, drPriceSnapshots, drPickEvents, InsertDrPick, InsertDrPriceSnapshot, InsertDrPickEvent } from "../drizzle/schema";
+
+// DR Picks queries
+export async function createDrPick(pick: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Import drPicks from schema
+  const { drPicks } = await import("../drizzle/schema");
+  const result = await db.insert(drPicks).values(pick);
+  return result;
+}
+
+export async function getAllDrPicks() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { drPicks } = await import("../drizzle/schema");
+  return db.select().from(drPicks).orderBy(desc(drPicks.createdAt));
+}
+
+export async function getActiveDrPicks() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { drPicks } = await import("../drizzle/schema");
+  return db.select()
+    .from(drPicks)
+    .where(and(
+      eq(drPicks.isActive, 1),
+      eq(drPicks.status, "Waiting")
+    ))
+    .orderBy(desc(drPicks.createdAt));
+}
+
+export async function getDrPickById(pickId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const { drPicks } = await import("../drizzle/schema");
+  const result = await db.select().from(drPicks).where(eq(drPicks.id, pickId)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function getDrPickBySymbol(symbol: string) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const { drPicks } = await import("../drizzle/schema");
+  const result = await db.select().from(drPicks).where(eq(drPicks.symbol, symbol)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function updateDrPick(pickId: number, updates: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { drPicks } = await import("../drizzle/schema");
+  return db.update(drPicks).set(updates).where(eq(drPicks.id, pickId));
+}
+
+export async function deleteDrPick(pickId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { drPicks } = await import("../drizzle/schema");
+  return db.delete(drPicks).where(eq(drPicks.id, pickId));
+}
+
+// DR Price Snapshots queries
+export async function createPriceSnapshot(snapshot: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { drPriceSnapshots } = await import("../drizzle/schema");
+  return db.insert(drPriceSnapshots).values(snapshot);
+}
+
+export async function getLatestPriceSnapshot(symbol: string) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const { drPriceSnapshots } = await import("../drizzle/schema");
+  const result = await db.select()
+    .from(drPriceSnapshots)
+    .where(eq(drPriceSnapshots.symbol, symbol))
+    .orderBy(desc(drPriceSnapshots.recordedAt))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function getPriceSnapshotHistory(symbol: string, hoursBack: number = 24) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { drPriceSnapshots } = await import("../drizzle/schema");
+  const cutoffTime = new Date();
+  cutoffTime.setHours(cutoffTime.getHours() - hoursBack);
+  
+  return db.select()
+    .from(drPriceSnapshots)
+    .where(and(
+      eq(drPriceSnapshots.symbol, symbol),
+      gte(drPriceSnapshots.recordedAt, cutoffTime)
+    ))
+    .orderBy(desc(drPriceSnapshots.recordedAt));
+}
+
+// DR Pick Events queries
+export async function createPickEvent(event: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { drPickEvents } = await import("../drizzle/schema");
+  return db.insert(drPickEvents).values(event);
+}
+
+export async function getPickEvents(pickId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { drPickEvents } = await import("../drizzle/schema");
+  return db.select()
+    .from(drPickEvents)
+    .where(eq(drPickEvents.pickId, pickId))
+    .orderBy(desc(drPickEvents.createdAt));
+}
+
+export async function getRecentPickEvents(pickId: number, limit: number = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { drPickEvents } = await import("../drizzle/schema");
+  return db.select()
+    .from(drPickEvents)
+    .where(eq(drPickEvents.pickId, pickId))
+    .orderBy(desc(drPickEvents.createdAt))
+    .limit(limit);
+}

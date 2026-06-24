@@ -29,6 +29,13 @@
       "when": 1782289844987,
       "tag": "0003_uneven_earthquake",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1782292443227,
+      "tag": "0004_fat_zombie",
+      "breakpoints": true
     }
   ]
 }

@@ -162,6 +162,58 @@ export const priceHistory = mysqlTable("priceHistory", {
 export type PriceHistory = typeof priceHistory.$inferSelect;
 export type InsertPriceHistory = typeof priceHistory.$inferInsert;
 
+// DR Strategy Tracker Tables
+// Main DR picks table for dashboard tracking
+export const drPicks = mysqlTable("drPicks", {
+  id: int("id").autoincrement().primaryKey(),
+  symbol: varchar("symbol", { length: 50 }).notNull(), // e.g., NVDA80, AAPL80
+  name: varchar("name", { length: 100 }).notNull(), // e.g., Nvidia, Apple
+  market: varchar("market", { length: 50 }).notNull(), // e.g., US, TH
+  entryDate: timestamp("entryDate").notNull(),
+  entryPrice: varchar("entryPrice", { length: 50 }).notNull(),
+  tp1: varchar("tp1", { length: 50 }).notNull(),
+  tp2: varchar("tp2", { length: 50 }).notNull(),
+  sl: varchar("sl", { length: 50 }).notNull(),
+  status: mysqlEnum("status", ["Hit TP1", "Hit TP2", "Hit SL", "Near TP", "Near SL", "Waiting", "Closed", "Watchlist"]).default("Waiting").notNull(),
+  reason: text("reason"), // Why we recommended this
+  note: text("note"), // Additional notes
+  isActive: int("isActive").default(1).notNull(), // 0 = false, 1 = true
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  closedAt: timestamp("closedAt"),
+});
+
+export type DrPick = typeof drPicks.$inferSelect;
+export type InsertDrPick = typeof drPicks.$inferInsert;
+
+// Price snapshots for tracking price history
+export const drPriceSnapshots = mysqlTable("drPriceSnapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  symbol: varchar("symbol", { length: 50 }).notNull(),
+  price: varchar("price", { length: 50 }).notNull(),
+  changePercent: varchar("changePercent", { length: 50 }),
+  volume: int("volume"),
+  source: varchar("source", { length: 50 }).default("mock").notNull(), // e.g., ALGO_EQ, Mock
+  recordedAt: timestamp("recordedAt").defaultNow().notNull(),
+});
+
+export type DrPriceSnapshot = typeof drPriceSnapshots.$inferSelect;
+export type InsertDrPriceSnapshot = typeof drPriceSnapshots.$inferInsert;
+
+// Pick events for tracking changes and updates
+export const drPickEvents = mysqlTable("drPickEvents", {
+  id: int("id").autoincrement().primaryKey(),
+  pickId: int("pickId").notNull(),
+  eventType: varchar("eventType", { length: 50 }).notNull(), // e.g., SL_MOVED, TP_HIT, NOTE_ADDED
+  oldValue: text("oldValue"),
+  newValue: text("newValue"),
+  note: text("note"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type DrPickEvent = typeof drPickEvents.$inferSelect;
+export type InsertDrPickEvent = typeof drPickEvents.$inferInsert;
+
 // Relations
 export const dailyPicksRelations = relations(dailyPicks, ({ many }) => ({
   priceHistory: many(priceHistory),
@@ -173,3 +225,16 @@ export const priceHistoryRelations = relations(priceHistory, ({ one }) => ({
     references: [dailyPicks.id],
   }),
 }));
+
+export const drPicksRelations = relations(drPicks, ({ many }) => ({
+  events: many(drPickEvents),
+}));
+
+export const drPickEventsRelations = relations(drPickEvents, ({ one }) => ({
+  pick: one(drPicks, {
+    fields: [drPickEvents.pickId],
+    references: [drPicks.id],
+  }),
+}));
+
+// drPriceSnapshots has no relations to other tables
