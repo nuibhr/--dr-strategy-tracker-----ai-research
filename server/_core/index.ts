@@ -225,6 +225,11 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    // Seed DR picks and price snapshots data on server start
+    import("../db").then(async db => {
+      await db.seedDrPicks();
+      await db.seedDrPriceSnapshots();
+    });
   });
 }
 

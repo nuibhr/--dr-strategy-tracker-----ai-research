@@ -4,20 +4,30 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
-import Portfolio from "./pages/Portfolio";
-import PositionDetails from "./pages/PositionDetails";
-import Settings from "./pages/Settings";
-import History from "./pages/History";
+import Dashboard from "./pages/Dashboard";
+import DrDetail from "./pages/DrDetail";
+import AdminPage from "./pages/Admin";
+import DrPicksPage from "./pages/DrPicks";
+import WatchlistPage from "./pages/Watchlist";
+import AlertsPage from "./pages/Alerts";
+import PerformancePage from "./pages/Performance";
+import HistoryPage from "./pages/HistoryPage";
+import SettingsPage from "./pages/SettingsPage";
 
 function Router() {
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/portfolio"} component={Portfolio} />
-      <Route path={"/positions/:id"} component={PositionDetails} />
-      <Route path={"/history"} component={History} />
-      <Route path={"/settings"} component={Settings} />
+      <Route path={"/"} component={Dashboard} />
+      <Route path={"/dashboard"} component={Dashboard} />
+      <Route path={"/dr/:id"} component={DrDetail} />
+      <Route path={"/dr-picks"} component={DrPicksPage} />
+      <Route path={"/watchlist"} component={WatchlistPage} />
+      <Route path={"/alerts"} component={AlertsPage} />
+      <Route path={"/performance"} component={PerformancePage} />
+      <Route path={"/history"} component={HistoryPage} />
+      <Route path={"/admin"} component={AdminPage} />
+      <Route path={"/admin/new"} component={AdminPage} />
+      <Route path={"/settings"} component={SettingsPage} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -27,9 +37,7 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-      >
+      <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <Toaster />
           <Router />

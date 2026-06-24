@@ -198,15 +198,14 @@ export function calculatePerformanceMetrics(picks: Array<{
     if (metrics.status === "Watchlist") watchlistPicks++;
     if (pick.isActive && !pick.closedAt) activePicks++;
 
-    // Calculate returns for closed picks
-    if (pick.closedAt) {
-      totalReturn += metrics.returnPercent;
-      if (metrics.returnPercent > 0) winCount++;
-    }
+    // Calculate returns for all active picks (not just closed)
+    totalReturn += metrics.returnPercent;
+    if (metrics.returnPercent > 0) winCount++;
   });
 
-  const winRate = closedPicks > 0 ? (winCount / closedPicks) * 100 : 0;
-  const averageReturn = closedPicks > 0 ? totalReturn / closedPicks : 0;
+  const activePlusHit = picks.filter(p => p.isActive).length;
+  const winRate = activePlusHit > 0 ? (winCount / activePlusHit) * 100 : 0;
+  const averageReturn = activePlusHit > 0 ? totalReturn / activePlusHit : 0;
 
   return {
     totalPicks,

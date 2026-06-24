@@ -43,7 +43,21 @@ export const drPicksRouter = router({
   list: publicProcedure.query(async () => {
     try {
       const picks = await db.getAllDrPicks();
-      return picks;
+      // Merge latest price snapshot into each pick
+      const picksWithPrices = await Promise.all(picks.map(async (pick) => {
+        const latestPrice = await db.getLatestPriceSnapshot(pick.symbol);
+        const currentPrice = latestPrice ? parseFloat(latestPrice.price) : parseFloat(pick.entryPrice);
+        const returnPct = calculationService.calculateReturnPercent(parseFloat(pick.entryPrice), currentPrice);
+        const rr = calculationService.calculateRiskRewardRatio(parseFloat(pick.entryPrice), parseFloat(pick.tp1), parseFloat(pick.sl));
+        return {
+          ...pick,
+          currentPrice: currentPrice.toFixed(2),
+          returnPercent: returnPct,
+          riskReward: rr,
+          changePercent: latestPrice?.changePercent ?? null,
+        };
+      }));
+      return picksWithPrices;
     } catch (error) {
       console.error("[drPicks.list] Error:", error);
       throw error;
