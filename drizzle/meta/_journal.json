@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1782274152246,
+      "tag": "0000_daffy_wilson_fisk",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1782274195904,
+      "tag": "0001_unusual_catseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1782288021585,
+      "tag": "0002_friendly_captain_universe",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1782289844987,
+      "tag": "0003_uneven_earthquake",
+      "breakpoints": true
+    }
+  ]
+}

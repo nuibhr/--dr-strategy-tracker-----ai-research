@@ -1,0 +1,40 @@
+CREATE TABLE `dailyPicks` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`userId` int NOT NULL,
+	`ticker` varchar(50) NOT NULL,
+	`drName` varchar(100) NOT NULL,
+	`companyName` text,
+	`entryPrice` varchar(50) NOT NULL,
+	`entryPriceUSD` varchar(50),
+	`stopLoss` varchar(50) NOT NULL,
+	`takeProfit` varchar(50) NOT NULL,
+	`currentPrice` varchar(50),
+	`currentPriceUSD` varchar(50),
+	`news` text,
+	`outlook` text,
+	`support` varchar(50),
+	`resistance` varchar(50),
+	`ratio` varchar(20) DEFAULT '1',
+	`analysis` text,
+	`status` enum('active','archived','tp_hit','sl_hit') NOT NULL DEFAULT 'active',
+	`pickedAt` timestamp NOT NULL DEFAULT (now()),
+	`archivedAt` timestamp,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `dailyPicks_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+CREATE TABLE `priceHistory` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`dailyPickId` int NOT NULL,
+	`price` varchar(50) NOT NULL,
+	`priceUSD` varchar(50),
+	`pnl` varchar(50),
+	`pnlPercent` varchar(50),
+	`checkTime` enum('09:00','10:50','14:30') NOT NULL,
+	`hitTP` int NOT NULL DEFAULT 0,
+	`hitSL` int NOT NULL DEFAULT 0,
+	`telegramSent` int NOT NULL DEFAULT 0,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `priceHistory_id` PRIMARY KEY(`id`)
+);

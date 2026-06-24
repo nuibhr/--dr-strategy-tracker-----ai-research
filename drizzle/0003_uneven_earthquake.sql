@@ -1,0 +1,1 @@
+ALTER TABLE `dailyPicks` ADD `telegramChatId` varchar(100);
