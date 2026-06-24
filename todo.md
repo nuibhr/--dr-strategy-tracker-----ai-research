@@ -1,10 +1,10 @@
 # DR Strategy Tracker - Project TODO
 
 ## Phase 1: Planning and Database Schema
-- [ ] Define Database Schema (`dr_picks`, `dr_price_snapshots`, `dr_pick_events`)
-- [ ] Propose file structure and modifications
-- [ ] Propose API endpoints
-- [ ] Propose web page structure
+- [x] Define Database Schema (`dr_picks`, `dr_price_snapshots`, `dr_pick_events`)
+- [x] Propose file structure and modifications
+- [x] Propose API endpoints
+- [x] Propose web page structure
 
 ## Phase 2: Environment Variables
 - [x] Request `BROKER_APP_ID` via `webdev_request_secrets`
@@ -57,3 +57,12 @@
 - [x] Fix test files to not require optional env vars (ALGO_EQ, Google Sheets, Telegram)
 - [x] All 10 tests pass (4 test files)
 - [ ] Deploy to production (user action required - click Publish in Management UI)
+
+## Phase 8: Refresh Prices Button (Mock Data Testing)
+- [x] Add Refresh Prices button on Dashboard header (next to clock)
+- [x] Wire button to `drPicks.refreshPrices` tRPC mutation
+- [x] Show loading spinner while refreshing
+- [x] After refresh, invalidate `drPicks.list`, `drPicks.getAlerts`, `drPicks.getPerformance` queries
+- [x] Show toast notification with refresh result (how many prices updated, with alert symbols)
+- [x] Ensure mock data generates slightly randomized prices each refresh to test alerts
+- [x] Align mock base prices to realistic current prices near TP/SL zones for alert testing (AAPL80=4.34 near TP1=4.45, NVDA80=6.55 at TP1=6.50, TSLA80=3.70 near SL=3.60, META80=5.52 near TP1=5.60, GOOG80=4.36 above entry=4.28)

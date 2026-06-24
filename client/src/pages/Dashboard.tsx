@@ -298,12 +298,34 @@ export default function Dashboard() {
     return () => clearInterval(t);
   }, []);
 
-  const { data: picksData, isLoading: picksLoading, refetch: refetchPicks } = trpc.drPicks.list.useQuery();
+  const utils = trpc.useUtils();
+  const { data: picksData, isLoading: picksLoading } = trpc.drPicks.list.useQuery();
   const { data: alertsData } = trpc.drPicks.getAlerts.useQuery();
   const { data: perfData } = trpc.drPicks.getPerformance.useQuery();
   const refreshMutation = trpc.drPicks.refreshPrices.useMutation({
-    onSuccess: () => { refetchPicks(); toast.success("รีเฟรชราคาสำเร็จ"); },
-    onError: () => toast.error("รีเฟรชราคาล้มเหลว"),
+    onSuccess: (results) => {
+      // Invalidate all related queries to refresh UI
+      utils.drPicks.list.invalidate();
+      utils.drPicks.getAlerts.invalidate();
+      utils.drPicks.getPerformance.invalidate();
+
+      // Show detailed result toast
+      const succeeded = results.filter((r: any) => r.success).length;
+      const alerts = results.filter((r: any) => r.success && r.status && r.status !== "Waiting");
+      if (alerts.length > 0) {
+        const alertSymbols = alerts.map((a: any) => `${a.symbol} → ${a.status}`).join(", ");
+        toast.success(`รีเฟรชราคาสำเร็จ ${succeeded}/${results.length} ตัว`, {
+          description: `⚠️ Alert: ${alertSymbols}`,
+          duration: 5000,
+        });
+      } else {
+        toast.success(`รีเฟรชราคาสำเร็จ ${succeeded}/${results.length} ตัว`, {
+          description: "ไม่มี alerts ใหม่",
+          duration: 3000,
+        });
+      }
+    },
+    onError: () => toast.error("รีเฟรชราคาล้มเหลว กรุณาลองใหม่อีกครั้ง"),
   });
 
   const picks: DrPick[] = (picksData as DrPick[] | undefined) ?? [];
