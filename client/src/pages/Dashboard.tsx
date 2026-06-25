@@ -361,19 +361,7 @@ export default function Dashboard() {
   const timeStr = now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const isMarketOpen = now.getDay() >= 1 && now.getDay() <= 5 && now.getHours() >= 9 && now.getHours() < 17;
 
-  // Show login screen only when auth check is done and user is not authenticated
-  if (!loading && !isAuthenticated) return (
-    <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
-      <div className="text-center">
-        <BarChart2 className="w-12 h-12 text-green-400 mx-auto mb-4" />
-        <h1 className="text-white text-xl font-bold mb-2">DR Strategy Tracker</h1>
-        <p className="text-white/50 text-sm mb-6">หนุ่มนักออม AI Research</p>
-        <Button onClick={() => window.location.href = getLoginUrl()} className="bg-green-500 hover:bg-green-600 text-white">
-          เข้าสู่ระบบ
-        </Button>
-      </div>
-    </div>
-  );
+  // Dashboard is public - no auth gate needed
 
   return (
     <div className="flex min-h-screen bg-[#0d1117]">

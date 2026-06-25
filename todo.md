@@ -66,3 +66,9 @@
 - [x] Show toast notification with refresh result (how many prices updated, with alert symbols)
 - [x] Ensure mock data generates slightly randomized prices each refresh to test alerts
 - [x] Align mock base prices to realistic current prices near TP/SL zones for alert testing (AAPL80=4.34 near TP1=4.45, NVDA80=6.55 at TP1=6.50, TSLA80=3.70 near SL=3.60, META80=5.52 near TP1=5.60, GOOG80=4.36 above entry=4.28)
+
+## Phase 9: Bug Fixes and Final Polish
+- [x] Update seed data to use real THB DR prices (AAPL80=9.62, NVDA80=6.53, TSLA80=12.33, META80=18.31, GOOG80=11.33)
+- [x] Update mock prices in marketDataService to match real THB prices
+- [x] Fix Dashboard auth gate - removed login requirement so dashboard is publicly viewable without login
+- [ ] Deploy to production (user action: click Publish button in Management UI header when ready)
