@@ -36,14 +36,7 @@ interface DrPick {
   updatedAt?: string | Date;
 }
 
-// ─── Mock market data ─────────────────────────────────────────────────────────
-const MARKET_DATA = [
-  { name: "SET", value: "1,348.21", change: "+0.38%", positive: true },
-  { name: "NASDAQ", value: "19,682.91", change: "+1.10%", positive: true },
-  { name: "S&P 500", value: "5,532.01", change: "+0.74%", positive: true },
-  { name: "NIKKEI 225", value: "38,757.51", change: "-0.15%", positive: false },
-  { name: "HSI", value: "19,234.26", change: "+0.55%", positive: true },
-];
+// ─── Market data now comes from tRPC (real Yahoo Finance) ────────────────────
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getStatusClass(status: DrStatus) {
@@ -198,7 +191,7 @@ function DrPickCard({ pick }: { pick: DrPick }) {
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
-function Sidebar({ alertCount }: { alertCount: number }) {
+function Sidebar({ alertCount, marketIndices, marketLoading }: { alertCount: number; marketIndices: { name: string; value: string; change: string; positive: boolean }[]; marketLoading: boolean }) {
   const [location] = useLocation();
   const navItems = [
     { href: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -265,9 +258,17 @@ function Sidebar({ alertCount }: { alertCount: number }) {
       {/* Market Summary */}
       <div className="p-3 border-t border-white/10">
         <p className="text-[10px] text-white/40 font-semibold uppercase tracking-wider mb-2">MARKET SUMMARY</p>
-        <p className="text-[10px] text-white/30 mb-2">(15 นาทีล่าสุด)</p>
+        <p className="text-[10px] text-white/30 mb-2">(cache 15 นาที)</p>
         <div className="space-y-1.5">
-          {MARKET_DATA.map(m => (
+          {marketLoading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between text-xs animate-pulse">
+                <span className="bg-white/10 rounded w-16 h-3" />
+                <span className="bg-white/10 rounded w-14 h-3" />
+                <span className="bg-white/10 rounded w-10 h-3" />
+              </div>
+            ))
+          ) : marketIndices.map(m => (
             <div key={m.name} className="flex items-center justify-between text-xs">
               <span className="text-white/60 w-20 shrink-0">{m.name}</span>
               <span className="text-white/80 font-medium">{m.value}</span>
@@ -303,6 +304,10 @@ export default function Dashboard() {
   const { data: picksData, isLoading: picksLoading } = trpc.drPicks.list.useQuery();
   const { data: alertsData } = trpc.drPicks.getAlerts.useQuery();
   const { data: perfData } = trpc.drPicks.getPerformance.useQuery();
+  const { data: marketData, isLoading: marketLoading } = trpc.marketSummary.getIndices.useQuery(undefined, {
+    staleTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
   const refreshMutation = trpc.drPicks.refreshPrices.useMutation({
     onSuccess: (results) => {
       // Invalidate all related queries to refresh UI
@@ -366,7 +371,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#0d1117]">
-      <Sidebar alertCount={alerts.length} />
+      <Sidebar alertCount={alerts.length} marketIndices={marketData?.indices ?? []} marketLoading={marketLoading} />
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">

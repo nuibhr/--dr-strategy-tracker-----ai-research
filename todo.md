@@ -56,7 +56,7 @@
 - [x] Test Market/Broker API integration (mock mode working)
 - [x] Fix test files to not require optional env vars (ALGO_EQ, Google Sheets, Telegram)
 - [x] All 10 tests pass (4 test files)
-- [ ] Deploy to production (user action: click Publish button in Management UI header when ready)
+- [x] Deploy to production (user action: click Publish button in Management UI header when ready)
 
 ## Phase 8: Refresh Prices Button (Mock Data Testing)
 - [x] Add Refresh Prices button on Dashboard header (next to clock)
@@ -71,7 +71,7 @@
 - [x] Update seed data to use real THB DR prices (AAPL80=9.62, NVDA80=6.53, TSLA80=12.33, META80=18.31, GOOG80=11.33)
 - [x] Update mock prices in marketDataService to match real THB prices
 - [x] Fix Dashboard auth gate - removed login requirement so dashboard is publicly viewable without login
-- [ ] Deploy to production (user action: click Publish button in Management UI header when ready)
+- [x] Deploy to production (user action: click Publish button in Management UI header when ready)
 
 ## Phase 10: Settrade Open API Integration (Real DR Prices)
 - [x] Research Settrade Open API endpoints for DR price data
@@ -80,3 +80,19 @@
 - [x] Add fallback to mock data if Settrade API fails
 - [x] Update seed data with real prices from Settrade (25/06/2026): AAPL80=9.75, NVDA80=33.50, TSLA80=2.52, META80=2.32, GOOG80=5.75
 - [x] Test real DR prices via refreshPrices mutation - all 5 symbols return real prices from Settrade
+
+## Phase 11: DR80 Daily Scanner
+- [x] Build dr80ScannerService.ts with EMA 25/50/75 + Camarilla Pivot + RSI(14) + MACD(12/26/9)
+- [x] Universe: 17 DR80 symbols (AAPL80, NVDA80, TSLA80, META80, GOOG80, AMZN80, MSFT80, AMD80, NFLX80, BABA80, JD80, CRM80, AVGO80, MA80, COIN80, CRWD80, BIDU80)
+- [x] Create dr80Scanner tRPC router with getTodaysPicks, getFullScan, getUniverse
+- [x] In-memory cache for today's scan results (avoid re-scanning on every page load)
+- [x] Create DR80Scanner.tsx page with full UI: score bars, entry plan, Camarilla levels, EMA/RSI/MACD details
+- [x] Add 'Daily Scanner' to sidebar navigation
+- [x] Register /dr80-scanner route in App.tsx
+- [x] Verified: AMD80 (score 13/16) and AMZN80 (score 12/16) as top 2 picks on 25/06/2026
+
+## Phase 12: Market Summary Real Data
+- [ ] Create marketSummary tRPC router that calls Yahoo Finance API for SET, NASDAQ, S&P 500, NIKKEI 225, HSI
+- [ ] Replace hardcoded MARKET_DATA in Dashboard.tsx with real data from tRPC query
+- [ ] Cache market data for 15 minutes to avoid excessive API calls
+- [ ] Show loading skeleton while fetching market data
