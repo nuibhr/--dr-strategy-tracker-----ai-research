@@ -56,7 +56,7 @@
 - [x] Test Market/Broker API integration (mock mode working)
 - [x] Fix test files to not require optional env vars (ALGO_EQ, Google Sheets, Telegram)
 - [x] All 10 tests pass (4 test files)
-- [ ] Deploy to production (user action required - click Publish in Management UI)
+- [ ] Deploy to production (user action: click Publish button in Management UI header when ready)
 
 ## Phase 8: Refresh Prices Button (Mock Data Testing)
 - [x] Add Refresh Prices button on Dashboard header (next to clock)

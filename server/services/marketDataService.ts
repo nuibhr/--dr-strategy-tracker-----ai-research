@@ -13,18 +13,19 @@ export interface PriceData {
   timestamp: Date;
 }
 
-// Mock price data for testing - aligned with seed data entry prices
-// AAPL80: entry=4.20, TP1=4.45, TP2=4.60, SL=4.00
-// NVDA80: entry=6.10, TP1=6.50, TP2=6.80, SL=5.80
-// TSLA80: entry=3.80, TP1=4.00, TP2=4.20, SL=3.60
-// META80: entry=5.25, TP1=5.60, TP2=5.90, SL=4.90
-// GOOG80: entry=4.28, TP1=4.45, TP2=4.70, SL=4.10
+// Mock price data - Real THB DR prices (June 2025)
+// Formula: DR Price (THB) = Stock Price (USD) × FX Rate (USD/THB ~33.5) / Conversion Ratio (1000)
+// AAPL80: AAPL $293.17 × 33.5 / 1000 = 9.82 THB | entry=9.62, TP1=10.31, TP2=10.80, SL=9.33
+// NVDA80: NVDA $198.91 × 33.5 / 1000 = 6.66 THB | entry=6.53, TP1=7.00, TP2=7.33, SL=6.33
+// TSLA80: TSLA $375.47 × 33.5 / 1000 = 12.58 THB | entry=12.33, TP1=13.21, TP2=13.84, SL=11.95
+// META80: META $557.80 × 33.5 / 1000 = 18.69 THB | entry=18.31, TP1=19.62, TP2=20.55, SL=17.75
+// GOOG80: GOOG $345.03 × 33.5 / 1000 = 11.56 THB | entry=11.33, TP1=12.14, TP2=12.71, SL=10.98
 const MOCK_PRICES: Record<string, { basePrice: number; volatility: number }> = {
-  AAPL80: { basePrice: 4.34, volatility: 0.04 },  // near entry, can swing to TP1=4.45 or SL=4.00
-  NVDA80: { basePrice: 6.55, volatility: 0.04 },  // near TP1=6.50, can hit TP2=6.80
-  TSLA80: { basePrice: 3.70, volatility: 0.05 },  // between entry and SL, can trigger Near SL
-  META80: { basePrice: 5.52, volatility: 0.04 },  // above entry, can approach TP1=5.60
-  GOOG80: { basePrice: 4.36, volatility: 0.04 },  // slightly above entry
+  AAPL80: { basePrice: 9.82,  volatility: 0.04 },  // current ~9.82 THB, can swing to TP1=10.31 or SL=9.33
+  NVDA80: { basePrice: 6.66,  volatility: 0.04 },  // current ~6.66 THB, can swing to TP1=7.00 or SL=6.33
+  TSLA80: { basePrice: 12.58, volatility: 0.05 },  // current ~12.58 THB, can swing to TP1=13.21 or SL=11.95
+  META80: { basePrice: 18.69, volatility: 0.04 },  // current ~18.69 THB, can swing to TP1=19.62 or SL=17.75
+  GOOG80: { basePrice: 11.56, volatility: 0.04 },  // current ~11.56 THB, can swing to TP1=12.14 or SL=10.98
 };
 
 /**
