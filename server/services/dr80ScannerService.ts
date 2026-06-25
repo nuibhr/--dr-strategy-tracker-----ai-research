@@ -170,6 +170,22 @@ function calcCamarilla(high: number, low: number, close: number): CamarillaPivot
   };
 }
 
+/**
+ * ATR (Average True Range) - ใช้คำนวณ TP/SL ที่สมเหตุสมผลสำหรับ DR ราคาต่ำ
+ */
+function calcAtr(highs: number[], lows: number[], closes: number[], period = 14): number {
+  if (highs.length < period + 1) return 0;
+  const trs: number[] = [];
+  for (let i = 1; i < highs.length; i++) {
+    const hl = highs[i] - lows[i];
+    const hpc = Math.abs(highs[i] - closes[i - 1]);
+    const lpc = Math.abs(lows[i] - closes[i - 1]);
+    trs.push(Math.max(hl, hpc, lpc));
+  }
+  const recent = trs.slice(-period);
+  return recent.reduce((a, b) => a + b, 0) / recent.length;
+}
+
 // ─── Score a Symbol ───────────────────────────────────────────────────────────
 
 async function scoreSymbol(symbol: string): Promise<DR80ScanResult | null> {
@@ -199,6 +215,7 @@ async function scoreSymbol(symbol: string): Promise<DR80ScanResult | null> {
   if (ema25 > ema50) emaScore++;
   if (ema50 > ema75) emaScore++;
   const emaAligned = emaScore === 3;
+  // ผ่านอย่างน้อย 1 เงื่อนไข EMA ก็ถือว่าเป็นตัวเลือกได้
 
   // ── RSI ──
   const rsi = calcRsi(closes) ?? 50;
@@ -221,54 +238,45 @@ async function scoreSymbol(symbol: string): Promise<DR80ScanResult | null> {
   const prevMacd = calcMacd(closes.slice(0, -1));
   if (prevMacd && histogram > prevMacd.histogram) macdScore++;
 
-  // ── Camarilla ──
-  const prevHigh = highs[highs.length - 2] ?? highs[highs.length - 1];
-  const prevLow = lows[lows.length - 2] ?? lows[lows.length - 1];
+  // ── ATR (14 วัน) ──
+  const atr = calcAtr(highs, lows, closes, 14);
+
+  // ── Camarilla (ใช้ Weekly range 5 วัน เพื่อให้ TP/SL กว้างพอ) ──
+  const lookback = 5;
+  const recentHighs = highs.slice(-lookback - 1, -1);
+  const recentLows = lows.slice(-lookback - 1, -1);
+  const weeklyHigh = Math.max(...recentHighs);
+  const weeklyLow = Math.min(...recentLows);
   const prevClose = closes[closes.length - 2] ?? closes[closes.length - 1];
-  const cam = calcCamarilla(prevHigh, prevLow, prevClose);
+  const cam = calcCamarilla(weeklyHigh, weeklyLow, prevClose);
 
   let camScore = 0;
   if (currentPrice > cam.pivot) camScore++;
   if (currentPrice >= cam.S3 && currentPrice <= cam.R3) camScore++;
   if (currentPrice >= cam.S2 && currentPrice <= cam.S3) camScore += 2; // ideal buy zone
 
-  // ── Entry Plan ──
-  // Smart entry: if price is already above R1, use R2/R3 as TP
-  // If price is near S3, use S3 as entry
-  let entry = currentPrice;
-  let tp1: number;
-  let tp2: number;
-  let sl: number;
+  // ── Entry Plan (ATR-based สำหรับ DR ราคาต่ำ) ──
+  // ใช้ ATR คำนวณ TP/SL เพื่อให้ได้ range ที่สมเหตุสมผล
+  // SL = 1.5x ATR ต่ำกว่า entry
+  // TP1 = 2x ATR สูงกว่า entry (R/R = 1.33)
+  // TP2 = 3.5x ATR สูงกว่า entry (R/R = 2.33)
+  // ถ้า ATR น้อยเกินไป (น้อยกว่า 0.5% ของราคา) ใช้ min ATR = 0.5% ของราคา
+  const minAtr = currentPrice * 0.005;
+  const effectiveAtr = Math.max(atr, minAtr);
 
-  if (currentPrice <= cam.S3) {
-    // Deep buy zone: entry at S3, TP at R1/R2, SL at S4
-    entry = cam.S3;
-    tp1 = cam.R1;
-    tp2 = cam.R2;
-    sl = cam.S4;
-  } else if (currentPrice <= cam.pivot) {
-    // Below pivot: entry at current, TP at R1/R2, SL at S3
-    tp1 = cam.R1;
-    tp2 = cam.R2;
-    sl = cam.S3;
-  } else if (currentPrice <= cam.R1) {
-    // Between pivot and R1: entry at current, TP at R2/R3, SL at pivot
-    tp1 = cam.R2;
-    tp2 = cam.R3;
-    sl = cam.pivot;
-  } else {
-    // Above R1: entry at current, TP at R3/R4, SL at R1
-    tp1 = cam.R3;
-    tp2 = cam.R4;
-    sl = cam.R1;
-  }
+  const entry = currentPrice;
+  const sl = Math.round((entry - effectiveAtr * 1.5) * 100) / 100;
+  const tp1 = Math.round((entry + effectiveAtr * 2.0) * 100) / 100;
+  const tp2 = Math.round((entry + effectiveAtr * 3.5) * 100) / 100;
 
   const riskReward = entry - sl > 0
     ? Math.round(((tp1 - entry) / (entry - sl)) * 100) / 100
     : 0;
 
   // ── Total Score ──
-  const totalScore = emaScore * 2 + camScore * 2 + rsiScore + macdScore;
+  // EMA: ผ่านอย่างน้อย 1 เงื่อนไขก็นับคะแนนได้ (emaScore >= 1)
+  const emaContrib = emaScore >= 1 ? emaScore * 2 : 0;
+  const totalScore = emaContrib + camScore * 2 + rsiScore + macdScore;
 
   // ── Reason (Thai) ──
   const reasons: string[] = [];
@@ -280,6 +288,8 @@ async function scoreSymbol(symbol: string): Promise<DR80ScanResult | null> {
   if (camScore >= 2) reasons.push(`ราคาใกล้ Camarilla S3 (Buy Zone)`);
   else if (currentPrice > cam.pivot) reasons.push("ราคาอยู่เหนือ Pivot");
 
+  // EMA reason: ผ่อนเงื่อนไขเป็น >= 1
+  if (emaScore === 0) reasons.push("EMA ยังไม่เรียงตัว (ข้ามเงื่อนไขนี้)");
   const reason = reasons.join(" | ") || "Technical setup น่าสนใจ";
 
   return {
