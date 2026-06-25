@@ -92,7 +92,7 @@
 - [x] Verified: AMD80 (score 13/16) and AMZN80 (score 12/16) as top 2 picks on 25/06/2026
 
 ## Phase 12: Market Summary Real Data
-- [ ] Create marketSummary tRPC router that calls Yahoo Finance API for SET, NASDAQ, S&P 500, NIKKEI 225, HSI
-- [ ] Replace hardcoded MARKET_DATA in Dashboard.tsx with real data from tRPC query
-- [ ] Cache market data for 15 minutes to avoid excessive API calls
-- [ ] Show loading skeleton while fetching market data
+- [x] Create marketSummary tRPC router that calls Yahoo Finance API for SET, NASDAQ, S&P 500, NIKKEI 225, HSI
+- [x] Replace hardcoded MARKET_DATA in Dashboard.tsx with real data from tRPC query
+- [x] Cache market data for 15 minutes to avoid excessive API calls
+- [x] Show loading skeleton while fetching market data

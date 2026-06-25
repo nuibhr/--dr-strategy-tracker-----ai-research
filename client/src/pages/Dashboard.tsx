@@ -191,7 +191,7 @@ function DrPickCard({ pick }: { pick: DrPick }) {
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
-function Sidebar({ alertCount, marketIndices, marketLoading }: { alertCount: number; marketIndices: { name: string; value: string; change: string; positive: boolean }[]; marketLoading: boolean }) {
+function Sidebar({ alertCount, marketIndices, marketLoading, marketError }: { alertCount: number; marketIndices: { name: string; value: string; change: string; positive: boolean }[]; marketLoading: boolean; marketError?: boolean }) {
   const [location] = useLocation();
   const navItems = [
     { href: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -260,7 +260,9 @@ function Sidebar({ alertCount, marketIndices, marketLoading }: { alertCount: num
         <p className="text-[10px] text-white/40 font-semibold uppercase tracking-wider mb-2">MARKET SUMMARY</p>
         <p className="text-[10px] text-white/30 mb-2">(cache 15 นาที)</p>
         <div className="space-y-1.5">
-          {marketLoading ? (
+          {marketError ? (
+            <p className="text-[10px] text-red-400/70">ไม่สามารถโหลดข้อมูลได้</p>
+          ) : marketLoading ? (
             Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex items-center justify-between text-xs animate-pulse">
                 <span className="bg-white/10 rounded w-16 h-3" />
@@ -268,6 +270,8 @@ function Sidebar({ alertCount, marketIndices, marketLoading }: { alertCount: num
                 <span className="bg-white/10 rounded w-10 h-3" />
               </div>
             ))
+          ) : marketIndices.length === 0 ? (
+            <p className="text-[10px] text-white/30">ไม่มีข้อมูล</p>
           ) : marketIndices.map(m => (
             <div key={m.name} className="flex items-center justify-between text-xs">
               <span className="text-white/60 w-20 shrink-0">{m.name}</span>
@@ -304,9 +308,10 @@ export default function Dashboard() {
   const { data: picksData, isLoading: picksLoading } = trpc.drPicks.list.useQuery();
   const { data: alertsData } = trpc.drPicks.getAlerts.useQuery();
   const { data: perfData } = trpc.drPicks.getPerformance.useQuery();
-  const { data: marketData, isLoading: marketLoading } = trpc.marketSummary.getIndices.useQuery(undefined, {
+  const { data: marketData, isLoading: marketLoading, isError: marketError } = trpc.marketSummary.getIndices.useQuery(undefined, {
     staleTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
+    retry: 2,
   });
   const refreshMutation = trpc.drPicks.refreshPrices.useMutation({
     onSuccess: (results) => {
@@ -371,7 +376,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen bg-[#0d1117]">
-      <Sidebar alertCount={alerts.length} marketIndices={marketData?.indices ?? []} marketLoading={marketLoading} />
+      <Sidebar alertCount={alerts.length} marketIndices={marketData?.indices ?? []} marketLoading={marketLoading} marketError={marketError} />
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
