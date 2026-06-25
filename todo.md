@@ -72,3 +72,11 @@
 - [x] Update mock prices in marketDataService to match real THB prices
 - [x] Fix Dashboard auth gate - removed login requirement so dashboard is publicly viewable without login
 - [ ] Deploy to production (user action: click Publish button in Management UI header when ready)
+
+## Phase 10: Settrade Open API Integration (Real DR Prices)
+- [x] Research Settrade Open API endpoints for DR price data
+- [x] Implemented ECDSA P-256 signature auth in Node.js (broker_id=022, app_code=ALGO_EQ)
+- [x] Rewrite marketDataService.ts to call Settrade API with BROKER_APP_ID + BROKER_API_SECRET
+- [x] Add fallback to mock data if Settrade API fails
+- [x] Update seed data with real prices from Settrade (25/06/2026): AAPL80=9.75, NVDA80=33.50, TSLA80=2.52, META80=2.32, GOOG80=5.75
+- [x] Test real DR prices via refreshPrices mutation - all 5 symbols return real prices from Settrade

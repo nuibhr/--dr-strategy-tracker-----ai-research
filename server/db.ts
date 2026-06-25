@@ -488,25 +488,25 @@ export async function seedDrPicks() {
     return;
   }
 
-  // Real THB DR prices (June 2025)
-  // Formula: DR Price (THB) = Stock Price (USD) × FX Rate (USD/THB ~33.5) / Conversion Ratio (1000)
-  // AAPL: $293.17 × 33.5 / 1000 = ~9.82 THB
-  // NVDA: $198.91 × 33.5 / 1000 = ~6.66 THB
-  // TSLA: $375.47 × 33.5 / 1000 = ~12.58 THB
-  // META: $557.80 × 33.5 / 1000 = ~18.69 THB
-  // GOOG: $345.03 × 33.5 / 1000 = ~11.56 THB
+  // Real THB DR prices from Settrade API (June 25, 2026)
+  // Source: Settrade Open API - broker 022 (TRINITY), app ALGO_EQ
+  // AAPL80: last=9.75, high=10.10, low=9.70
+  // NVDA80: last=33.50, high=33.75, low=33.00
+  // TSLA80: last=2.52, high=2.58, low=2.50
+  // META80: last=2.32, high=2.38, low=2.32
+  // GOOG80: last=5.75, high=5.90, low=5.70
   const picksToSeed: InsertDrPick[] = [
     {
       symbol: "AAPL80",
       name: "Apple DR",
       market: "US",
       entryDate: new Date("2025-06-10T02:00:00Z"),
-      entryPrice: "9.62",   // entry ~2% below current (9.82 THB)
-      tp1: "10.31",          // +5% from current
-      tp2: "10.80",          // +10% from current
-      sl: "9.33",            // -5% from current
+      entryPrice: "9.75",   // real price from Settrade 25/06/2026
+      tp1: "10.23",          // +5% from entry
+      tp2: "10.73",          // +10% from entry
+      sl: "9.26",            // -5% from entry
       status: "Waiting",
-      reason: "Strong brand, consistent innovation, good earnings report. iPhone 16 cycle. AAPL80 = AAPL $293 × 33.5 / 1000",
+      reason: "Strong brand, consistent innovation, good earnings report. iPhone 16 cycle. ราคา DR จริงจาก Settrade 9.75 บาท",
       note: "Monitor for iPhone sales data and AI integration. ราคา DR = ราคาหุ้น USD × อัตราแลก / 1000",
       isActive: 1,
     },
@@ -515,12 +515,12 @@ export async function seedDrPicks() {
       name: "Nvidia DR",
       market: "US",
       entryDate: new Date("2025-06-12T02:00:00Z"),
-      entryPrice: "6.53",   // entry ~2% below current (6.66 THB)
-      tp1: "7.00",           // +5% from current
-      tp2: "7.33",           // +10% from current
-      sl: "6.33",            // -5% from current
+      entryPrice: "33.50",  // real price from Settrade 25/06/2026
+      tp1: "35.18",          // +5% from entry
+      tp2: "36.85",          // +10% from entry
+      sl: "31.83",           // -5% from entry
       status: "Waiting",
-      reason: "Leader in AI and gaming GPUs, Blackwell chip demand surge. NVDA80 = NVDA $199 × 33.5 / 1000",
+      reason: "Leader in AI and gaming GPUs, Blackwell chip demand surge. ราคา DR จริงจาก Settrade 33.50 บาท",
       note: "Watch for competition in AI chip market. ราคา DR = ราคาหุ้น USD × อัตราแลก / 1000",
       isActive: 1,
     },
@@ -529,12 +529,12 @@ export async function seedDrPicks() {
       name: "Tesla DR",
       market: "US",
       entryDate: new Date("2025-06-08T02:00:00Z"),
-      entryPrice: "12.33",  // entry ~2% below current (12.58 THB)
-      tp1: "13.21",          // +5% from current
-      tp2: "13.84",          // +10% from current
-      sl: "11.95",           // -5% from current
+      entryPrice: "2.52",   // real price from Settrade 25/06/2026
+      tp1: "2.65",           // +5% from entry
+      tp2: "2.77",           // +10% from entry
+      sl: "2.39",            // -5% from entry
       status: "Waiting",
-      reason: "EV market growth, FSD advancements. Robotaxi catalyst. TSLA80 = TSLA $375 × 33.5 / 1000",
+      reason: "EV market growth, FSD advancements. Robotaxi catalyst. ราคา DR จริงจาก Settrade 2.52 บาท",
       note: "Volatility due to Elon Musk's tweets. Watch delivery numbers.",
       isActive: 1,
     },
@@ -543,12 +543,12 @@ export async function seedDrPicks() {
       name: "Meta Platforms DR",
       market: "US",
       entryDate: new Date("2025-06-15T02:00:00Z"),
-      entryPrice: "18.31",  // entry ~2% below current (18.69 THB)
-      tp1: "19.62",          // +5% from current
-      tp2: "20.55",          // +10% from current
-      sl: "17.75",           // -5% from current
+      entryPrice: "2.32",   // real price from Settrade 25/06/2026
+      tp1: "2.44",           // +5% from entry
+      tp2: "2.55",           // +10% from entry
+      sl: "2.20",            // -5% from entry
       status: "Waiting",
-      reason: "Dominant social media presence, AI Llama model advantage. META80 = META $558 × 33.5 / 1000",
+      reason: "Dominant social media presence, AI Llama model advantage. ราคา DR จริงจาก Settrade 2.32 บาท",
       note: "Regulatory scrutiny and competition. Watch ad revenue.",
       isActive: 1,
     },
@@ -557,12 +557,12 @@ export async function seedDrPicks() {
       name: "Alphabet DR",
       market: "US",
       entryDate: new Date("2025-06-11T02:00:00Z"),
-      entryPrice: "11.33",  // entry ~2% below current (11.56 THB)
-      tp1: "12.14",          // +5% from current
-      tp2: "12.71",          // +10% from current
-      sl: "10.98",           // -5% from current
+      entryPrice: "5.75",   // real price from Settrade 25/06/2026
+      tp1: "6.04",           // +5% from entry
+      tp2: "6.33",           // +10% from entry
+      sl: "5.46",            // -5% from entry
       status: "Waiting",
-      reason: "Strong advertising revenue, AI Gemini leadership. GOOG80 = GOOG $345 × 33.5 / 1000",
+      reason: "Strong advertising revenue, AI Gemini leadership. ราคา DR จริงจาก Settrade 5.75 บาท",
       note: "Antitrust concerns. Watch Search market share.",
       isActive: 1,
     },
@@ -583,18 +583,13 @@ export async function seedDrPriceSnapshots() {
     return;
   }
 
-  // Current prices in THB (June 2025) - calculated from real stock prices
-  // AAPL: $293.17 × 33.5 / 1000 = 9.82 THB
-  // NVDA: $198.91 × 33.5 / 1000 = 6.66 THB
-  // TSLA: $375.47 × 33.5 / 1000 = 12.58 THB
-  // META: $557.80 × 33.5 / 1000 = 18.69 THB
-  // GOOG: $345.03 × 33.5 / 1000 = 11.56 THB
+  // Real prices from Settrade API (June 25, 2026)
   const snapshotsToSeed = [
-    { symbol: "AAPL80", price: "9.82",  changePercent: "2.08",  source: "mock" }, // +2.08% from entry 9.62
-    { symbol: "NVDA80", price: "6.66",  changePercent: "1.99",  source: "mock" }, // +1.99% from entry 6.53
-    { symbol: "TSLA80", price: "12.58", changePercent: "2.03",  source: "mock" }, // +2.03% from entry 12.33
-    { symbol: "META80", price: "18.69", changePercent: "2.07",  source: "mock" }, // +2.07% from entry 18.31
-    { symbol: "GOOG80", price: "11.56", changePercent: "2.03",  source: "mock" }, // +2.03% from entry 11.33
+    { symbol: "AAPL80", price: "9.75",  changePercent: "-1.02", source: "settrade" },
+    { symbol: "NVDA80", price: "33.50", changePercent: "-0.74", source: "settrade" },
+    { symbol: "TSLA80", price: "2.52",  changePercent: "-0.79", source: "settrade" },
+    { symbol: "META80", price: "2.32",  changePercent: "-0.85", source: "settrade" },
+    { symbol: "GOOG80", price: "5.75",  changePercent: "-0.86", source: "settrade" },
   ] satisfies InsertDrPriceSnapshot[];
 
   await db.insert(drPriceSnapshots).values(snapshotsToSeed);
