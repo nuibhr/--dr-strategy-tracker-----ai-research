@@ -9,6 +9,7 @@ import { telegramRouter } from "./routers/telegram";
 import { algoEqRouter } from "./routers/algoEq";
 import { dailyPicksRouter } from "./routers/dailyPicks";
 import { drPicksRouter } from "./routers/drPicks";
+import { dr80ScannerRouter } from "./routers/dr80Scanner";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -31,6 +32,7 @@ export const appRouter = router({
   algoEq: algoEqRouter,
   dailyPicks: dailyPicksRouter,
   drPicks: drPicksRouter,
+  dr80Scanner: dr80ScannerRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -75,7 +75,7 @@ function createEcdsaSignature(secret: string, content: string): string {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-async function getAccessToken(): Promise<string> {
+export async function getAccessToken(): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   if (cachedToken && now < tokenExpiresAt - 60) {
     return cachedToken;

@@ -7,7 +7,7 @@ import {
   LayoutDashboard, ListChecks, Bookmark, Bell, BarChart2, History,
   Settings, PlusCircle, RefreshCw, ChevronDown, Search, Filter,
   MoreHorizontal, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2,
-  Clock, X, ChevronRight
+  Clock, X, ChevronRight, Scan
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -203,6 +203,7 @@ function Sidebar({ alertCount }: { alertCount: number }) {
   const navItems = [
     { href: "/", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/dr-picks", icon: ListChecks, label: "DR Picks" },
+    { href: "/dr80-scanner", icon: Scan, label: "Daily Scanner" },
     { href: "/watchlist", icon: Bookmark, label: "Watchlist" },
     { href: "/alerts", icon: Bell, label: "Alerts", badge: alertCount },
     { href: "/performance", icon: BarChart2, label: "Performance" },
