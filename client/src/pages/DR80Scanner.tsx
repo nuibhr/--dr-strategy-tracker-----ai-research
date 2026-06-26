@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   RefreshCw, TrendingUp, TrendingDown, Target, Shield,
-  Zap, BarChart2, Activity, ChevronDown, ChevronUp, Clock, Scan
+  Zap, BarChart2, Activity, ChevronDown, ChevronUp, Clock, Scan,
+  PlusCircle, CheckCircle2, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -56,11 +57,51 @@ function ScoreBar({ value, max }: { value: number; max: number }) {
 }
 
 // ─── Pick Card ────────────────────────────────────────────────────────────────
-function PickCard({ pick, rank }: { pick: ScanResult; rank: number }) {
+function PickCard({
+  pick, rank, existingSymbols
+}: {
+  pick: ScanResult;
+  rank: number;
+  existingSymbols: string[];
+}) {
   const [expanded, setExpanded] = useState(false);
+  const [added, setAdded] = useState(false);
   const positive = pick.changePct >= 0;
   const rrGood = pick.riskReward >= 1.5;
   const maxScore = 16; // 3*2 EMA + 4*2 Cam + 3 RSI + 3 MACD
+
+  const utils = trpc.useUtils();
+  const alreadyInPicks = existingSymbols.includes(pick.symbol) || added;
+
+  const addToPicks = trpc.drPicks.create.useMutation({
+    onSuccess: () => {
+      setAdded(true);
+      toast.success(`เพิ่ม ${pick.symbol} เข้า DR Picks แล้ว! 🎯`, {
+        description: `Entry: ${pick.entry.toFixed(2)} | TP1: ${pick.tp1.toFixed(2)} | SL: ${pick.sl.toFixed(2)}`,
+      });
+      // Invalidate picks list so Dashboard updates
+      utils.drPicks.list.invalidate();
+      utils.drPicks.getPerformance.invalidate();
+    },
+    onError: (err) => {
+      toast.error(`เพิ่มไม่สำเร็จ: ${err.message}`);
+    },
+  });
+
+  const handleAddToPicks = () => {
+    addToPicks.mutate({
+      symbol: pick.symbol,
+      name: `${pick.symbol.replace("80", "")} DR 80%`,
+      market: "SET",
+      entryDate: new Date(),
+      entryPrice: pick.entry.toFixed(2),
+      tp1: pick.tp1.toFixed(2),
+      tp2: pick.tp2.toFixed(2),
+      sl: pick.sl.toFixed(2),
+      reason: pick.reason,
+      note: `Added from DR80 Scanner | Score: ${pick.totalScore}/16 | EMA: ${pick.emaScore}/3 | RSI: ${pick.rsi.toFixed(1)}`,
+    });
+  };
 
   return (
     <div className="bg-[#1a1f2e] border border-white/10 rounded-2xl overflow-hidden hover:border-green-500/30 transition-all">
@@ -139,6 +180,28 @@ function PickCard({ pick, rank }: { pick: ScanResult; rank: number }) {
         {/* Reason */}
         <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg px-3 py-2 mb-4">
           <p className="text-xs text-blue-300 leading-relaxed">💡 {pick.reason}</p>
+        </div>
+
+        {/* Add to Picks Button */}
+        <div className="mb-3">
+          {alreadyInPicks ? (
+            <div className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 text-sm font-semibold">
+              <CheckCircle2 className="w-4 h-4" />
+              อยู่ใน DR Picks แล้ว
+            </div>
+          ) : (
+            <Button
+              onClick={handleAddToPicks}
+              disabled={addToPicks.isPending}
+              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold gap-2 py-2.5 h-auto rounded-xl"
+            >
+              {addToPicks.isPending ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> กำลังเพิ่ม...</>
+              ) : (
+                <><PlusCircle className="w-4 h-4" /> เพิ่มเข้า DR Picks</>
+              )}
+            </Button>
+          )}
         </div>
 
         {/* Expand button */}
@@ -263,6 +326,15 @@ export default function DR80Scanner() {
     { staleTime: 5 * 60 * 1000 }
   );
 
+  // Fetch existing picks to detect duplicates (filter active ones client-side)
+  const { data: existingPicks } = trpc.drPicks.list.useQuery(
+    undefined,
+    { staleTime: 30 * 1000 }
+  );
+  const existingSymbols = (existingPicks ?? [])
+    .filter((p: { isActive: number }) => p.isActive === 1)
+    .map((p: { symbol: string }) => p.symbol);
+
   const handleRefresh = async () => {
     setForceRefresh(true);
     toast.loading("กำลัง scan DR80 ทั้งหมด...", { id: "scan" });
@@ -375,7 +447,7 @@ export default function DR80Scanner() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {picks.map((pick, i) => (
-                <PickCard key={pick.symbol} pick={pick as ScanResult} rank={i + 1} />
+                <PickCard key={pick.symbol} pick={pick as ScanResult} rank={i + 1} existingSymbols={existingSymbols} />
               ))}
             </div>
           </>

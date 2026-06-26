@@ -96,3 +96,9 @@
 - [x] Replace hardcoded MARKET_DATA in Dashboard.tsx with real data from tRPC query
 - [x] Cache market data for 15 minutes to avoid excessive API calls
 - [x] Show loading skeleton while fetching market data
+
+## Phase 13: Add to DR Picks button in Daily Scanner
+- [ ] Add "เพิ่มเข้า DR Picks" button to each pick card in DR80Scanner.tsx
+- [ ] Wire button to drPicks.create tRPC mutation with pre-filled entry/TP/SL from scan
+- [ ] Show success toast and disable button after adding (prevent duplicate)
+- [ ] Check if symbol already in active picks → show "อยู่ใน Picks แล้ว" state
