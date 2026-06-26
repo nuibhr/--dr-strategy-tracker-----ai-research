@@ -102,3 +102,11 @@
 - [x] Wire button to drPicks.create tRPC mutation with pre-filled entry/TP/SL from scan
 - [x] Show success toast and disable button after adding (prevent duplicate)
 - [x] Check if symbol already in active picks → show "อยู่ใน Picks แล้ว" state
+
+## Phase 14: Telegram Auto-Scan 08:30 น.
+- [x] รับ TELEGRAM_BOT_TOKEN และ TELEGRAM_CHAT_ID จากผู้ใช้
+- [x] สร้าง telegramService.ts สำหรับส่งข้อความ Telegram
+- [x] สร้าง /api/scheduled/dr80-scan endpoint
+- [x] Mount endpoint ใน server/_core/index.ts
+- [ ] สร้าง Heartbeat cron job ทุกวัน 08:30 น. (Asia/Bangkok = 01:30 UTC) — ต้อง Deploy ก่อน
+- [x] ทดสอบ Telegram notification ส่งได้จริง

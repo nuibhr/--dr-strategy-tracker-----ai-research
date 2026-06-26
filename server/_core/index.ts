@@ -15,6 +15,8 @@ import { notifyOwner } from "./notification";
 import { sendTelegramAlert } from "./telegramWebhook";
 import { getAllActiveDailyPicks, updateDailyPick, createPriceHistory } from "../db";
 import { getDRPrice } from "../routers/algoEq";
+import { scanDR80, DR80ScanResult } from "../services/dr80ScannerService";
+import { sendTelegramMessage, formatDR80ScanMessage } from "../services/telegramService";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -195,6 +197,54 @@ async function startServer() {
       console.error("[Scheduled] Error archiving picks:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+
+  // DR80 Auto-scan scheduled endpoint (Heartbeat cron - runs daily at 08:30 BKK)
+  app.post("/api/scheduled/dr80-scan", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user.isCron || !user.taskUid) {
+        return res.status(403).json({ error: "cron-only" });
+      }
+
+      console.log("[Scheduled] DR80 auto-scan starting...");
+      const scanDate = new Date().toISOString().split("T")[0];
+
+      // Run the DR80 scanner
+      const scanResult = await scanDR80();
+      const topPicks: DR80ScanResult[] = scanResult.slice(0, 2);
+      const totalScanned = scanResult.length;
+
+      // Format and send Telegram message
+      const message = formatDR80ScanMessage(topPicks, scanDate, totalScanned);
+      const sent = await sendTelegramMessage(message);
+
+      console.log(`[Scheduled] DR80 scan complete: ${topPicks.length} picks, Telegram: ${sent ? "sent" : "failed"}`);
+
+      // Also notify owner via Manus notification
+      await notifyOwner({
+        title: `DR80 Scanner: ${topPicks.length > 0 ? topPicks.map((p: DR80ScanResult) => p.symbol).join(", ") : "ไม่มีหุ้นผ่านเกณฑ์"}`,
+        content: topPicks.length > 0
+          ? `คัดได้ ${topPicks.length} ตัว: ${topPicks.map((p: DR80ScanResult) => `${p.symbol} (${p.totalScore}/16)`).join(", ")}`
+          : "วันนี้ไม่มีหุ้น DR80 ที่ผ่านเกณฑ์",
+      }).catch(() => {}); // non-critical
+
+      res.json({
+        ok: true,
+        picks: topPicks.length,
+        symbols: topPicks.map((p: DR80ScanResult) => p.symbol),
+        telegramSent: sent,
+        scannedCount: totalScanned,
+      });
+    } catch (error) {
+      console.error("[Scheduled] DR80 scan error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+        context: { url: "/api/scheduled/dr80-scan", taskUid: "unknown" },
         timestamp: new Date().toISOString(),
       });
     }
