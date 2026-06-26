@@ -34,7 +34,8 @@ export default function HistoryPage() {
           <div className="text-center py-20"><History className="w-10 h-10 text-white/20 mx-auto mb-3" /><p className="text-white/40 text-sm">ยังไม่มีประวัติ</p></div>
         ) : (
           <div className="bg-[#1a1f2e] border border-white/10 rounded-xl overflow-hidden">
-            <table className="w-full text-xs">
+            <div className="overflow-x-auto">
+            <table className="w-full text-xs min-w-[540px]">
               <thead><tr className="border-b border-white/10">{["Symbol", "Name", "Entry", "TP1", "SL", "Status", "ปิดเมื่อ"].map(h => <th key={h} className="text-left px-4 py-3 text-white/40">{h}</th>)}</tr></thead>
               <tbody>
                 {closed.map(p => (
@@ -50,6 +51,7 @@ export default function HistoryPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

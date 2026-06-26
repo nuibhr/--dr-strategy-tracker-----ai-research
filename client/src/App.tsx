@@ -4,6 +4,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import AppShell from "./components/AppShell";
 import Dashboard from "./pages/Dashboard";
 import DrDetail from "./pages/DrDetail";
 import AdminPage from "./pages/Admin";
@@ -17,6 +18,7 @@ import DR80ScannerPage from "./pages/DR80Scanner";
 
 function Router() {
   return (
+    <AppShell>
     <Switch>
       <Route path={"/"} component={Dashboard} />
       <Route path={"/dashboard"} component={Dashboard} />
@@ -33,6 +35,7 @@ function Router() {
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
+    </AppShell>
   );
 }
 

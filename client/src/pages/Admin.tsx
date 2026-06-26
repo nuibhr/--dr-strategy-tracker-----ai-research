@@ -64,7 +64,7 @@ function InputField({ label, value, onChange, placeholder, type = "text" }: {
 }
 
 export default function AdminPage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const [, navigate] = useLocation();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -161,6 +161,18 @@ export default function AdminPage() {
       </div>
     </div>
   );
+  if (user?.role !== "admin") return (
+    <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">🔒</div>
+        <h2 className="text-white font-bold text-lg mb-2">ไม่มีสิทธิ์เข้าถึงหน้านี้</h2>
+        <p className="text-white/40 text-sm mb-6">หน้านี้สำหรับ Admin เท่านั้น</p>
+        <Button onClick={() => navigate("/")} variant="outline" className="border-white/20 text-white">
+          กลับหน้าหลัก
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#0d1117] p-6">
@@ -193,7 +205,7 @@ export default function AdminPage() {
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <div className="grid grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <InputField label="Symbol *" value={form.symbol} onChange={v => setForm(f => ({ ...f, symbol: v }))} placeholder="เช่น AAPL80" />
               <InputField label="ชื่อ *" value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="เช่น Apple DR" />
               <div>
@@ -208,7 +220,7 @@ export default function AdminPage() {
               </div>
               <InputField label="วันที่เข้า *" value={form.entryDate} onChange={v => setForm(f => ({ ...f, entryDate: v }))} type="date" />
             </div>
-            <div className="grid grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
               <InputField label="ราคาเข้า *" value={form.entryPrice} onChange={v => setForm(f => ({ ...f, entryPrice: v }))} placeholder="เช่น 4.20" />
               <InputField label="TP1 *" value={form.tp1} onChange={v => setForm(f => ({ ...f, tp1: v }))} placeholder="เช่น 4.45" />
               <InputField label="TP2 *" value={form.tp2} onChange={v => setForm(f => ({ ...f, tp2: v }))} placeholder="เช่น 4.60" />

@@ -20,7 +20,7 @@ export default function PerformancePage() {
         {isLoading ? (
           <div className="text-center py-20 text-white/40 animate-pulse">กำลังโหลด...</div>
         ) : (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {[
               { label: "Win Rate", value: `${(perf?.winRate ?? 0).toFixed(1)}%`, icon: Award, color: "text-green-400", bg: "bg-green-500/10" },
               { label: "Average Return", value: `${(perf?.avgReturn ?? 0) >= 0 ? "+" : ""}${(perf?.avgReturn ?? 0).toFixed(2)}%`, icon: TrendingUp, color: "text-blue-400", bg: "bg-blue-500/10" },

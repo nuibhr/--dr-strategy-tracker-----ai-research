@@ -151,7 +151,7 @@ function PickCard({
         {/* Entry Plan */}
         <div className="bg-[#0f1117] rounded-xl p-4 mb-4">
           <p className="text-[10px] text-white/40 font-semibold uppercase tracking-wider mb-3">แผนเทรด</p>
-          <div className="grid grid-cols-4 gap-3 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             <div>
               <p className="text-[10px] text-white/40 mb-1">เข้า</p>
               <p className="text-sm font-black text-white">{pick.entry.toFixed(2)}</p>
@@ -293,7 +293,7 @@ function PickCard({
               </span>
               <ScoreBar value={pick.camScore} max={4} />
             </div>
-            <div className="grid grid-cols-4 gap-1.5 text-center text-[10px]">
+            <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5 text-center text-[10px]">
               {[
                 { label: "R3", val: pick.camarilla.R3, color: "text-red-300" },
                 { label: "R2", val: pick.camarilla.R2, color: "text-red-400" },
@@ -369,7 +369,7 @@ export default function DR80Scanner() {
           </div>
           <div className="flex items-center gap-3">
             {scannedAt && (
-              <div className="flex items-center gap-1.5 text-xs text-white/40">
+              <div className="hidden sm:flex items-center gap-1.5 text-xs text-white/40">
                 <Clock className="w-3 h-3" />
                 <span>Scan เมื่อ {scannedAt.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}</span>
                 {data?.fromCache && <Badge className="bg-white/5 text-white/30 border-white/10 text-[10px]">cache</Badge>}
@@ -395,7 +395,7 @@ export default function DR80Scanner() {
             <Zap className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-semibold text-purple-300 mb-1">วิธีคัดกรอง DR80 วันนี้</p>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-white/50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-white/50">
                 <span>✅ EMA 25 &gt; EMA 50 &gt; EMA 75 (Bullish Alignment)</span>
                 <span>✅ Camarilla Pivot — เข้าใกล้ S3 (Buy Zone)</span>
                 <span>✅ RSI 40-60 (Neutral Sweet Spot)</span>

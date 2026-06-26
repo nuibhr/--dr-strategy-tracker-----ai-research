@@ -375,9 +375,7 @@ export default function Dashboard() {
   // Dashboard is public - no auth gate needed
 
   return (
-    <div className="flex min-h-screen bg-[#0d1117]">
-      <Sidebar alertCount={alerts.length} marketIndices={marketData?.indices ?? []} marketLoading={marketLoading} marketError={marketError} />
-
+    <div className="flex flex-col min-h-screen bg-[#0d1117]">
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
@@ -406,15 +404,14 @@ export default function Dashboard() {
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">{alerts.length}</span>
               )}
             </div>
-            <div className="flex items-center gap-2 pl-2 border-l border-white/10">
+            <div className="hidden md:flex items-center gap-2 pl-2 border-l border-white/10">
               <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center text-xs font-bold text-green-400">
                 {user?.name?.charAt(0) ?? "A"}
               </div>
               <div className="text-xs">
-                <p className="text-white font-medium leading-tight">{user?.name ?? "Admin"}</p>
-                <p className="text-white/40 leading-tight">Admin</p>
+                <p className="text-white font-medium leading-tight">{user?.name ?? "-"}</p>
+                <p className="text-white/40 leading-tight">{user?.role === "admin" ? "Admin" : "Viewer"}</p>
               </div>
-              <ChevronDown className="w-3.5 h-3.5 text-white/40" />
             </div>
           </div>
         </header>
@@ -425,7 +422,7 @@ export default function Dashboard() {
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
             {/* ── Stats Cards ── */}
-            <div className="grid grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {[
                 { label: "ACTIVE PICKS", value: activePicks.length, sub: "กำลังติดตาม", color: "text-white", positive: true },
                 { label: "HIT TP", value: hitTP.length, sub: "ถึงเป้ากำไร", color: "text-green-400", positive: true },
@@ -448,7 +445,7 @@ export default function Dashboard() {
             </div>
 
             {/* ── Average Return + Total Closed ── */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="bg-[#1a1f2e] border border-white/10 rounded-xl p-5">
                 <p className="text-xs text-white/40 uppercase tracking-wider mb-2">AVERAGE RETURN</p>
                 <p className={`text-4xl font-bold ${avgReturn >= 0 ? "text-green-400" : "text-red-400"}`}>
@@ -583,7 +580,7 @@ export default function Dashboard() {
           </div>
 
           {/* ── Alert Center sidebar ── */}
-          <div className="w-[220px] shrink-0 border-l border-white/10 bg-[#0f1117] p-4 overflow-y-auto">
+          <div className="hidden lg:block w-[220px] shrink-0 border-l border-white/10 bg-[#0f1117] p-4 overflow-y-auto">
             <div className="flex items-center gap-2 mb-4">
               <Bell className="w-4 h-4 text-red-400" />
               <h3 className="text-sm font-bold text-white">ALERT CENTER</h3>

@@ -108,5 +108,32 @@
 - [x] สร้าง telegramService.ts สำหรับส่งข้อความ Telegram
 - [x] สร้าง /api/scheduled/dr80-scan endpoint
 - [x] Mount endpoint ใน server/_core/index.ts
-- [ ] สร้าง Heartbeat cron job ทุกวัน 08:30 น. (Asia/Bangkok = 01:30 UTC) — ต้อง Deploy ก่อน
+- [x] สร้าง Heartbeat cron job ทุกวัน 08:30 น. (Asia/Bangkok = 01:30 UTC) — task_uid: cTxSCMuXpMzLt8sT6LsqJm
 - [x] ทดสอบ Telegram notification ส่งได้จริง
+
+## Heartbeat Cron Jobs
+- dr80-daily-scan: task_uid = cTxSCMuXpMzLt8sT6LsqJm | cron: "0 30 1 * * *" (08:30 BKK daily) | path: /api/scheduled/dr80-scan
+
+## Phase 15: Admin/Viewer Role System
+- [ ] เพิ่ม role field (admin/viewer) ใน user table ผ่าน Drizzle schema
+- [ ] สร้าง adminProcedure ใน tRPC — ตรวจ ctx.user.role === 'admin'
+- [ ] ป้องกัน CRUD mutations (create/update/delete drPicks) ด้วย adminProcedure
+- [ ] ซ่อน sidebar items "Manage Picks", "Add New Pick" สำหรับ viewer
+- [ ] ซ่อนปุ่ม "เพิ่มเข้า DR Picks" ใน DR80Scanner สำหรับ viewer
+- [ ] ซ่อนปุ่ม Refresh Prices สำหรับ viewer
+- [ ] แสดง badge "Admin" / "Viewer" ใน sidebar user profile
+- [ ] ตั้ง OWNER_OPEN_ID เป็น admin โดยอัตโนมัติ (seed/migration)
+
+## Phase 16: Navigation — Home/Back Button
+- [ ] เพิ่มปุ่ม Home (icon) ใน DashboardLayout header ทุกหน้า
+- [ ] เพิ่ม breadcrumb หรือ back button ในหน้า detail/sub-pages
+- [ ] Mobile: เพิ่ม hamburger menu button เปิด/ปิด sidebar
+
+## Phase 17: Mobile Responsive Layout
+- [ ] Sidebar: collapse เป็น overlay drawer บน mobile (< 768px)
+- [ ] Dashboard stats cards: stack เป็น 2 columns บน mobile
+- [ ] DR Pick cards: full-width บน mobile
+- [ ] DR80Scanner: ปรับ layout เป็น single column บน mobile
+- [ ] Table: horizontal scroll บน mobile
+- [ ] Header: compact บน mobile (ซ่อน label เหลือแค่ icon)
+- [ ] Market Summary sidebar: ย้ายไปด้านล่างบน mobile
