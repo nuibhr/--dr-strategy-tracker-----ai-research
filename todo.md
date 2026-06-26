@@ -98,7 +98,7 @@
 - [x] Show loading skeleton while fetching market data
 
 ## Phase 13: Add to DR Picks button in Daily Scanner
-- [ ] Add "เพิ่มเข้า DR Picks" button to each pick card in DR80Scanner.tsx
-- [ ] Wire button to drPicks.create tRPC mutation with pre-filled entry/TP/SL from scan
-- [ ] Show success toast and disable button after adding (prevent duplicate)
-- [ ] Check if symbol already in active picks → show "อยู่ใน Picks แล้ว" state
+- [x] Add "เพิ่มเข้า DR Picks" button to each pick card in DR80Scanner.tsx
+- [x] Wire button to drPicks.create tRPC mutation with pre-filled entry/TP/SL from scan
+- [x] Show success toast and disable button after adding (prevent duplicate)
+- [x] Check if symbol already in active picks → show "อยู่ใน Picks แล้ว" state

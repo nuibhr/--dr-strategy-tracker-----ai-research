@@ -112,6 +112,14 @@ export const drPicksRouter = router({
     .input(CreateDrPickInput)
     .mutation(async ({ input }) => {
       try {
+        // Server-side duplicate protection: reject if active pick with same symbol exists
+        const existing = await db.getDrPickBySymbol(input.symbol);
+        if (existing && existing.isActive === 1) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `${input.symbol} มีอยู่ใน DR Picks แล้ว`,
+          });
+        }
         const result = await db.createDrPick({
           ...input,
           status: "Waiting",
