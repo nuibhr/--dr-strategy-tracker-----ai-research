@@ -5,7 +5,7 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-import { getLoginUrl } from "./const";
+import { SESSION_TOKEN_KEY } from "./authSession";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -31,7 +31,8 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  window.location.href = getLoginUrl();
+  localStorage.removeItem(SESSION_TOKEN_KEY);
+  queryClient.setQueryData([["auth", "me"], { type: "query" }], null);
 };
 
 queryClient.getQueryCache().subscribe(event => {
@@ -55,6 +56,10 @@ const trpcClient = trpc.createClient({
     httpBatchLink({
       url: getApiUrl(),
       transformer: superjson,
+      headers() {
+        const token = localStorage.getItem(SESSION_TOKEN_KEY);
+        return token ? { authorization: `Bearer ${token}` } : {};
+      },
       fetch(input, init) {
         return globalThis.fetch(input, {
           ...(init ?? {}),

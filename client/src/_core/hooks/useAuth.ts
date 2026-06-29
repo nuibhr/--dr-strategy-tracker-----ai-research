@@ -1,4 +1,5 @@
 import { getLoginUrl } from "@/const";
+import { SESSION_TOKEN_KEY } from "@/authSession";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
@@ -36,6 +37,7 @@ export function useAuth(options?: UseAuthOptions) {
       }
       throw error;
     } finally {
+      localStorage.removeItem(SESSION_TOKEN_KEY);
       utils.auth.me.setData(undefined, null);
       await utils.auth.me.invalidate();
     }

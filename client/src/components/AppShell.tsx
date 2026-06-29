@@ -9,6 +9,7 @@ import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { SESSION_TOKEN_KEY } from "@/authSession";
 
 interface NavItem {
   href: string;
@@ -42,7 +43,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [loginPassword, setLoginPassword] = useState("");
   const utils = trpc.useUtils();
   const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: async () => {
+    onSuccess: async data => {
+      localStorage.setItem(SESSION_TOKEN_KEY, data.sessionToken);
       await utils.auth.me.invalidate();
       toast.success("เข้าสู่ระบบสำเร็จ");
     },
