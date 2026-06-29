@@ -21,14 +21,14 @@ export async function createContext(
     user = null;
   }
 
-  if (!user && !ENV.isProduction && !ENV.oAuthServerUrl) {
+  if (!user && !ENV.oAuthServerUrl) {
     const now = new Date();
     user = {
       id: 1,
-      openId: "local-dev-user",
-      name: "Local Demo",
-      email: "local@example.test",
-      loginMethod: "local-dev",
+      openId: "bootstrap-admin",
+      name: "Bootstrap Admin",
+      email: "admin@example.test",
+      loginMethod: "bootstrap",
       role: "admin",
       createdAt: now,
       updatedAt: now,

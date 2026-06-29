@@ -10,8 +10,16 @@ import "./index.css";
 
 const queryClient = new QueryClient();
 
+const PRODUCTION_API_BASE_URL =
+  "https://dr-strategy-tracker-ai-research-production.up.railway.app";
+
 const getApiUrl = () => {
-  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(/\/+$/, "");
+  const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").trim();
+  const apiBaseUrl =
+    configuredApiBaseUrl ||
+    (typeof window !== "undefined" && window.location.hostname.endsWith(".pages.dev")
+      ? PRODUCTION_API_BASE_URL
+      : "");
   return apiBaseUrl ? `${apiBaseUrl}/api/trpc` : "/api/trpc";
 };
 
