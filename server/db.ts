@@ -49,14 +49,22 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   const db = await getDb();
   if (!db) {
     const existing = localUsers.find(item => item.openId === user.openId);
-    const userValues = {
-      name: user.name ?? null,
-      email: user.email ?? null,
-      loginMethod: user.loginMethod ?? null,
-      role: user.role ?? (user.openId === ENV.ownerOpenId ? "admin" : "user"),
+    const userValues: Record<string, unknown> = {
       lastSignedIn: user.lastSignedIn ?? new Date(),
       updatedAt: new Date(),
     };
+
+    if (user.name !== undefined) userValues.name = user.name;
+    if (user.email !== undefined) userValues.email = user.email;
+    if (user.passwordHash !== undefined) userValues.passwordHash = user.passwordHash;
+    if (user.loginMethod !== undefined) userValues.loginMethod = user.loginMethod;
+    if (user.role !== undefined) {
+      userValues.role = user.role;
+    } else if (!existing && user.openId === ENV.ownerOpenId) {
+      userValues.role = "admin";
+    } else if (!existing) {
+      userValues.role = "user";
+    }
 
     if (existing) {
       Object.assign(existing, userValues);
@@ -64,6 +72,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       localUsers.unshift({
         id: localUserId++,
         openId: user.openId,
+        name: null,
+        email: null,
+        passwordHash: null,
+        loginMethod: null,
         createdAt: new Date(),
         ...userValues,
       });
