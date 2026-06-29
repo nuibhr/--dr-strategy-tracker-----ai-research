@@ -1,5 +1,4 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -9,6 +8,7 @@ import {
 import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 interface NavItem {
   href: string;
@@ -38,6 +38,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [location, setLocation] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const utils = trpc.useUtils();
+  const loginMutation = trpc.auth.login.useMutation({
+    onSuccess: async () => {
+      await utils.auth.me.invalidate();
+      toast.success("เข้าสู่ระบบสำเร็จ");
+    },
+    onError: error => toast.error(error.message),
+  });
   const { data: alertsData } = trpc.drPicks.getAlerts.useQuery(undefined, {
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -79,11 +89,32 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <p className="text-sm text-white/40">หนุ่มนักออม AI Research</p>
           </div>
           <p className="text-sm text-white/60 text-center">กรุณาเข้าสู่ระบบเพื่อดูข้อมูล</p>
+          <div className="w-full space-y-3">
+            <input
+              type="email"
+              value={loginEmail}
+              onChange={event => setLoginEmail(event.target.value)}
+              autoComplete="email"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-green-500/60"
+              placeholder="Email"
+            />
+            <input
+              type="password"
+              value={loginPassword}
+              onChange={event => setLoginPassword(event.target.value)}
+              autoComplete="current-password"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-green-500/60"
+              placeholder="Password"
+            />
+          </div>
           <Button
-            onClick={() => { window.location.href = getLoginUrl(); }}
+            onClick={() => {
+              loginMutation.mutate({ email: loginEmail, password: loginPassword });
+            }}
+            disabled={loginMutation.isPending}
             className="w-full bg-green-600 hover:bg-green-500 text-white"
           >
-            เข้าสู่ระบบ
+            {loginMutation.isPending ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
           </Button>
         </div>
       </div>

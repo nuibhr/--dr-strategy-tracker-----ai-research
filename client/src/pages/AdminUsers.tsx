@@ -22,9 +22,10 @@ type AdminUser = {
 };
 
 const EMPTY_FORM = {
-  openId: "",
   name: "",
   email: "",
+  password: "",
+  role: "user" as UserRole,
 };
 
 function formatDate(value: Date | string | null | undefined) {
@@ -80,13 +81,13 @@ export default function AdminUsersPage() {
     staleTime: 30_000,
   });
 
-  const createAdmin = trpc.adminUsers.createAdmin.useMutation({
+  const createUser = trpc.adminUsers.createUser.useMutation({
     onSuccess: async () => {
-      toast.success("เพิ่มแอดมินสำเร็จ");
+      toast.success("สร้างบัญชีสำเร็จ");
       setForm(EMPTY_FORM);
       await utils.adminUsers.list.invalidate();
     },
-    onError: error => toast.error(`เพิ่มแอดมินไม่สำเร็จ: ${error.message}`),
+    onError: error => toast.error(`สร้างบัญชีไม่สำเร็จ: ${error.message}`),
   });
 
   const updateRole = trpc.adminUsers.updateRole.useMutation({
@@ -98,16 +99,17 @@ export default function AdminUsersPage() {
     onError: error => toast.error(`อัปเดตสิทธิ์ไม่สำเร็จ: ${error.message}`),
   });
 
-  function handleCreateAdmin() {
-    if (!form.openId.trim()) {
-      toast.error("กรุณาใส่ OpenID ของผู้ใช้");
+  function handleCreateUser() {
+    if (!form.name.trim() || !form.email.trim() || form.password.length < 8) {
+      toast.error("กรุณาใส่ชื่อ อีเมล และรหัสผ่านอย่างน้อย 8 ตัวอักษร");
       return;
     }
 
-    createAdmin.mutate({
-      openId: form.openId.trim(),
-      name: form.name.trim() || undefined,
-      email: form.email.trim() || undefined,
+    createUser.mutate({
+      name: form.name.trim(),
+      email: form.email.trim(),
+      password: form.password,
+      role: form.role,
     });
   }
 
@@ -166,16 +168,9 @@ export default function AdminUsersPage() {
         <div className="mb-6 rounded-xl border border-white/10 bg-[#1a1f2e] p-5">
           <div className="mb-4 flex items-center gap-2">
             <UserPlus className="h-4 w-4 text-green-400" />
-            <h2 className="text-sm font-semibold text-white">เพิ่มแอดมิน</h2>
+            <h2 className="text-sm font-semibold text-white">สร้างบัญชีผู้ใช้</h2>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <TextField
-              label="OpenID"
-              value={form.openId}
-              onChange={value => setForm(current => ({ ...current, openId: value }))}
-              placeholder="เช่น openid จาก OAuth"
-              required
-            />
             <TextField
               label="ชื่อ"
               value={form.name}
@@ -188,18 +183,25 @@ export default function AdminUsersPage() {
               onChange={value => setForm(current => ({ ...current, email: value }))}
               placeholder="admin@example.com"
             />
+            <TextField
+              label="Password"
+              value={form.password}
+              onChange={value => setForm(current => ({ ...current, password: value }))}
+              placeholder="อย่างน้อย 8 ตัวอักษร"
+              required
+            />
           </div>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-white/40">
-              ถ้าผู้ใช้เคย login แล้ว ให้ copy OpenID ของเขาจากตารางด้านล่าง แล้วเปลี่ยน role ได้ทันที
+              สร้างบัญชี Viewer ก่อน แล้วค่อยปรับเป็น Admin จากตารางด้านล่างได้ทันที
             </p>
             <Button
-              onClick={handleCreateAdmin}
-              disabled={createAdmin.isPending}
+              onClick={handleCreateUser}
+              disabled={createUser.isPending}
               className="gap-2 bg-green-600 text-white hover:bg-green-500"
             >
-              {createAdmin.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-              เพิ่มเป็น Admin
+              {createUser.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              สร้างบัญชี
             </Button>
           </div>
         </div>

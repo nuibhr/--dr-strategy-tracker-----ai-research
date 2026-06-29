@@ -16,6 +16,7 @@ const localUsers: any[] = [
     openId: "local-dev-user",
     name: "Local Demo",
     email: "local@example.test",
+    passwordHash: null,
     loginMethod: "local-dev",
     role: "admin",
     createdAt: now,
@@ -76,7 +77,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     };
     const updateSet: Record<string, unknown> = {};
 
-    const textFields = ["name", "email", "loginMethod"] as const;
+    const textFields = ["name", "email", "passwordHash", "loginMethod"] as const;
     type TextField = (typeof textFields)[number];
 
     const assignNullable = (field: TextField) => {
@@ -129,6 +130,17 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getUserByEmail(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const db = await getDb();
+  if (!db) {
+    return localUsers.find(user => user.email?.toLowerCase() === normalizedEmail);
+  }
+
+  const result = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
 export async function getAllUsers() {
   const db = await getDb();
   if (!db) {
@@ -145,15 +157,18 @@ export async function createAdminUser(input: {
   name?: string | null;
   email?: string | null;
   loginMethod?: string | null;
+  passwordHash?: string | null;
+  role?: "user" | "admin";
 }) {
   const db = await getDb();
   const now = new Date();
   const values: InsertUser = {
     openId: input.openId,
     name: input.name ?? null,
-    email: input.email ?? null,
-    loginMethod: input.loginMethod ?? "manual",
-    role: "admin",
+    email: input.email?.trim().toLowerCase() ?? null,
+    passwordHash: input.passwordHash ?? null,
+    loginMethod: input.loginMethod ?? "password",
+    role: input.role ?? "admin",
     lastSignedIn: now,
   };
 
@@ -178,8 +193,9 @@ export async function createAdminUser(input: {
     set: {
       name: values.name,
       email: values.email,
+      passwordHash: values.passwordHash,
       loginMethod: values.loginMethod,
-      role: "admin",
+      role: values.role,
       lastSignedIn: now,
     },
   });

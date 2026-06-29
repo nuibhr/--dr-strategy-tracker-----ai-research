@@ -1,12 +1,14 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { hashPassword } from "../_core/passwords";
 import { adminProcedure, router } from "../_core/trpc";
 import { createAdminUser, getAllUsers, updateUserRole } from "../db";
 
 const CreateAdminUserInput = z.object({
-  openId: z.string().min(3, "OpenID is required"),
-  name: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Valid email is required"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  role: z.enum(["user", "admin"]).default("user"),
 });
 
 const UpdateUserRoleInput = z.object({
@@ -30,19 +32,23 @@ export const adminUsersRouter = router({
     }));
   }),
 
-  createAdmin: adminProcedure
+  createUser: adminProcedure
     .input(CreateAdminUserInput)
     .mutation(async ({ input }) => {
+      const email = input.email.trim().toLowerCase();
       const user = await createAdminUser({
-        openId: input.openId.trim(),
-        name: input.name?.trim() || null,
-        email: input.email?.trim() || null,
+        openId: `password:${email}`,
+        name: input.name.trim(),
+        email,
+        passwordHash: await hashPassword(input.password),
+        role: input.role,
+        loginMethod: "password",
       });
 
       if (!user) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Could not create admin user",
+          message: "Could not create user",
         });
       }
 
