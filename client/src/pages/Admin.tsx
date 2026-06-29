@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { ArrowLeft, Plus, Pencil, Trash2, BarChart2, Save, X } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, BarChart2, Save, X, CheckCircle2, Eye, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -23,6 +23,7 @@ interface DrPick {
   reason?: string | null;
   note?: string | null;
   isActive: number;
+  closedAt?: Date | null;
 }
 
 function getStatusClass(status: DrStatus) {
@@ -65,7 +66,7 @@ function InputField({ label, value, onChange, placeholder, type = "text" }: {
 
 export default function AdminPage() {
   const { isAuthenticated, loading, user } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -73,6 +74,14 @@ export default function AdminPage() {
   const utils = trpc.useUtils();
   const { data: picksData, isLoading } = trpc.drPicks.list.useQuery();
   const picks: DrPick[] = (picksData as DrPick[] | undefined) ?? [];
+
+  useEffect(() => {
+    if (location === "/admin/new") {
+      setShowForm(true);
+      setEditId(null);
+      setForm(EMPTY_FORM);
+    }
+  }, [location]);
 
   const createMutation = trpc.drPicks.create.useMutation({
     onSuccess: () => {
@@ -102,6 +111,62 @@ export default function AdminPage() {
     },
     onError: (e) => toast.error(`เกิดข้อผิดพลาด: ${e.message}`),
   });
+
+  function updatePickState(
+    pick: DrPick,
+    data: Partial<{
+      status: DrStatus;
+      isActive: number;
+      closedAt: Date | null;
+    }>
+  ) {
+    updateMutation.mutate({
+      id: pick.id,
+      data,
+    });
+  }
+
+  function handleStatusChange(pick: DrPick, status: DrStatus) {
+    const nextData: Partial<{ status: DrStatus; isActive: number; closedAt: Date | null }> = { status };
+
+    if (status === "Watchlist") {
+      nextData.isActive = 0;
+      nextData.closedAt = null;
+    } else if (status === "Closed") {
+      nextData.isActive = 0;
+      nextData.closedAt = pick.closedAt ? new Date(pick.closedAt) : new Date();
+    } else {
+      nextData.isActive = 1;
+      nextData.closedAt = null;
+    }
+
+    updatePickState(pick, nextData);
+  }
+
+  function handleClosePick(pick: DrPick) {
+    if (!confirm(`ปิดสถานะ ${pick.symbol}?`)) return;
+    updatePickState(pick, {
+      status: "Closed",
+      isActive: 0,
+      closedAt: new Date(),
+    });
+  }
+
+  function handleMoveToWatchlist(pick: DrPick) {
+    updatePickState(pick, {
+      status: "Watchlist",
+      isActive: 0,
+      closedAt: null,
+    });
+  }
+
+  function handleReactivate(pick: DrPick) {
+    updatePickState(pick, {
+      status: "Waiting",
+      isActive: 1,
+      closedAt: null,
+    });
+  }
 
   function handleEdit(pick: DrPick) {
     setEditId(pick.id);
@@ -303,7 +368,18 @@ export default function AdminPage() {
                       <td className="px-4 py-3 text-emerald-400">{pick.tp2}</td>
                       <td className="px-4 py-3 text-red-400">{pick.sl}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${getStatusClass(pick.status)}`}>{pick.status}</span>
+                        <select
+                          value={pick.status}
+                          disabled={updateMutation.isPending}
+                          onChange={event => handleStatusChange(pick, event.target.value as DrStatus)}
+                          className={`rounded-full px-2 py-1 text-[10px] font-semibold outline-none ${getStatusClass(pick.status)} bg-[#101520]`}
+                        >
+                          {STATUS_OPTIONS.map(status => (
+                            <option key={status} value={status} className="bg-[#1a1f2e] text-white">
+                              {status}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-[10px] font-semibold ${pick.isActive === 1 ? "text-green-400" : "text-white/30"}`}>
@@ -311,15 +387,51 @@ export default function AdminPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(pick)}
                             className="h-7 w-7 p-0 text-white/40 hover:text-white hover:bg-white/10"
+                            title="Edit pick"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
+                          {pick.status === "Closed" || pick.status === "Watchlist" || pick.isActive === 0 ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleReactivate(pick)}
+                              disabled={updateMutation.isPending}
+                              className="h-7 w-7 p-0 text-white/40 hover:text-green-400 hover:bg-green-500/10"
+                              title="Reactivate"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleMoveToWatchlist(pick)}
+                                disabled={updateMutation.isPending}
+                                className="h-7 w-7 p-0 text-white/40 hover:text-purple-400 hover:bg-purple-500/10"
+                                title="Move to watchlist"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleClosePick(pick)}
+                                disabled={updateMutation.isPending}
+                                className="h-7 w-7 p-0 text-white/40 hover:text-blue-400 hover:bg-blue-500/10"
+                                title="Close position"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"

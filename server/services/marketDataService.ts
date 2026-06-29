@@ -30,6 +30,7 @@ const APP_ID = process.env.BROKER_APP_ID ?? "";
 const SECRET = process.env.BROKER_API_SECRET ?? "";
 const BROKER_ID = process.env.SETTRADE_BROKER_ID ?? "022";
 const APP_CODE = process.env.SETTRADE_APP_CODE ?? "ALGO_EQ";
+const REQUIRE_REALTIME = process.env.SETTRADE_REQUIRE_REALTIME === "true";
 const LOGIN_URL = `https://open-api.settrade.com/api/oam/v1/${BROKER_ID}/broker-apps/${APP_CODE}/login`;
 const MARKET_BASE = `https://marketapi.settrade.com/api/marketdata/v3/${BROKER_ID}`;
 
@@ -37,6 +38,7 @@ const MARKET_BASE = `https://marketapi.settrade.com/api/marketdata/v3/${BROKER_I
 
 let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
+let tokenRefreshPromise: Promise<string> | null = null;
 
 // ─── ECDSA Signature (P-256 / secp256r1) ─────────────────────────────────────
 
@@ -81,6 +83,20 @@ export async function getAccessToken(): Promise<string> {
     return cachedToken;
   }
 
+  if (tokenRefreshPromise) {
+    return tokenRefreshPromise;
+  }
+
+  tokenRefreshPromise = refreshAccessToken();
+  try {
+    return await tokenRefreshPromise;
+  } finally {
+    tokenRefreshPromise = null;
+  }
+}
+
+async function refreshAccessToken(): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
   const ts = Date.now().toString();
   const content = `${APP_ID}..${ts}`;
   const signature = createEcdsaSignature(SECRET, content);
@@ -153,6 +169,17 @@ function hasCredentials(): boolean {
   return !!(APP_ID && SECRET);
 }
 
+export function getMarketDataStatus() {
+  return {
+    provider: "settrade",
+    brokerId: BROKER_ID,
+    appCode: APP_CODE,
+    hasCredentials: hasCredentials(),
+    requireRealtime: REQUIRE_REALTIME,
+    tokenCached: Boolean(cachedToken && Math.floor(Date.now() / 1000) < tokenExpiresAt - 60),
+  };
+}
+
 /**
  * Fetch real-time price data for a DR symbol.
  * Falls back to mock data if credentials are missing or API call fails.
@@ -173,7 +200,13 @@ export async function fetchPriceData(symbol: string): Promise<PriceData> {
         timestamp: new Date(),
       };
     } catch (err) {
-      console.error(`[marketDataService] Settrade API error for ${symbol}, falling back to mock:`, err);
+      console.error(
+        `[marketDataService] Settrade API error for ${symbol}${REQUIRE_REALTIME ? "" : ", falling back to mock"}:`,
+        err
+      );
+      if (REQUIRE_REALTIME) {
+        throw err;
+      }
     }
   }
 

@@ -15,6 +15,7 @@ import PerformancePage from "./pages/Performance";
 import HistoryPage from "./pages/HistoryPage";
 import SettingsPage from "./pages/SettingsPage";
 import DR80ScannerPage from "./pages/DR80Scanner";
+import AdminUsersPage from "./pages/AdminUsers";
 
 function Router() {
   return (
@@ -28,8 +29,9 @@ function Router() {
       <Route path={"/alerts"} component={AlertsPage} />
       <Route path={"/performance"} component={PerformancePage} />
       <Route path={"/history"} component={HistoryPage} />
-      <Route path={"/admin"} component={AdminPage} />
+      <Route path={"/admin/users"} component={AdminUsersPage} />
       <Route path={"/admin/new"} component={AdminPage} />
+      <Route path={"/admin"} component={AdminPage} />
       <Route path={"/settings"} component={SettingsPage} />
       <Route path={"/dr80-scanner"} component={DR80ScannerPage} />
       <Route path={"/404"} component={NotFound} />

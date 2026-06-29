@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   RefreshCw, TrendingUp, TrendingDown, Target, Shield,
   Zap, BarChart2, Activity, ChevronDown, ChevronUp, Clock, Scan,
-  PlusCircle, CheckCircle2, Loader2
+  PlusCircle, CheckCircle2, Loader2, Send, Wifi
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -320,11 +320,24 @@ function PickCard({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DR80Scanner() {
   const [forceRefresh, setForceRefresh] = useState(false);
+  const utils = trpc.useUtils();
 
   const { data, isLoading, error, refetch } = trpc.dr80Scanner.getTodaysPicks.useQuery(
     { forceRefresh },
     { staleTime: 5 * 60 * 1000 }
   );
+  const { data: integrationStatus, isLoading: statusLoading } = trpc.dr80Scanner.getIntegrationStatus.useQuery(
+    undefined,
+    { staleTime: 60 * 1000 }
+  );
+  const sendTelegram = trpc.dr80Scanner.sendTodaysPicksToTelegram.useMutation({
+    onSuccess: (result) => {
+      toast.success(`ส่ง Telegram แล้ว (${result.count} picks)`);
+    },
+    onError: (err) => {
+      toast.error(`ส่ง Telegram ไม่สำเร็จ: ${err.message}`);
+    },
+  });
 
   // Fetch existing picks to detect duplicates (filter active ones client-side)
   const { data: existingPicks } = trpc.drPicks.list.useQuery(
@@ -340,6 +353,7 @@ export default function DR80Scanner() {
     toast.loading("กำลัง scan DR80 ทั้งหมด...", { id: "scan" });
     try {
       await refetch();
+      await utils.dr80Scanner.getIntegrationStatus.invalidate();
       toast.success("Scan เสร็จแล้ว!", { id: "scan" });
     } catch {
       toast.error("Scan ล้มเหลว", { id: "scan" });
@@ -350,6 +364,8 @@ export default function DR80Scanner() {
 
   const picks = data?.picks ?? [];
   const scannedAt = data?.scannedAt ? new Date(data.scannedAt) : null;
+  const liveQuote = integrationStatus?.sampleQuote;
+  const isLive = liveQuote?.source === "settrade";
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#0d1117] min-h-screen">
@@ -376,6 +392,16 @@ export default function DR80Scanner() {
               </div>
             )}
             <Button
+              onClick={() => sendTelegram.mutate({ forceRefresh: false })}
+              disabled={sendTelegram.isPending || isLoading || picks.length === 0 || !integrationStatus?.telegram.configured}
+              size="sm"
+              variant="outline"
+              className="border-white/10 text-white/70 hover:text-white gap-2"
+            >
+              {sendTelegram.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              ส่ง Telegram
+            </Button>
+            <Button
               onClick={handleRefresh}
               disabled={isLoading}
               size="sm"
@@ -390,6 +416,30 @@ export default function DR80Scanner() {
 
       <div className="p-6">
         {/* Info Banner */}
+        <div className={`border rounded-xl p-4 mb-6 ${integrationStatus?.ok ? "bg-green-500/10 border-green-500/20" : "bg-yellow-500/10 border-yellow-500/20"}`}>
+          <div className="flex items-start gap-3">
+            <Wifi className={`w-5 h-5 shrink-0 mt-0.5 ${integrationStatus?.ok ? "text-green-400" : "text-yellow-400"}`} />
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <p className="text-sm font-semibold text-white">Live integration status</p>
+                <Badge className={isLive ? "bg-green-500/20 text-green-300 border-green-500/30" : "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"}>
+                  Settrade: {statusLoading ? "checking" : isLive ? "live" : "not live"}
+                </Badge>
+                <Badge className={integrationStatus?.telegram.configured ? "bg-green-500/20 text-green-300 border-green-500/30" : "bg-red-500/20 text-red-300 border-red-500/30"}>
+                  Telegram: {integrationStatus?.telegram.configured ? "ready" : "missing"}
+                </Badge>
+              </div>
+              {liveQuote ? (
+                <p className="text-xs text-white/55">
+                  Sample AAPL80: {liveQuote.price.toFixed(2)} THB ({liveQuote.changePercent >= 0 ? "+" : ""}{liveQuote.changePercent.toFixed(2)}%) จาก {liveQuote.source}
+                </p>
+              ) : (
+                <p className="text-xs text-white/55">{integrationStatus?.marketError ?? "กำลังตรวจสอบ Settrade..."}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 mb-6">
           <div className="flex items-start gap-3">
             <Zap className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
@@ -441,8 +491,10 @@ export default function DR80Scanner() {
                 🎯 Top {picks.length} Picks วันนี้
               </h2>
               <div className="flex items-center gap-2">
-                <Shield className="w-3.5 h-3.5 text-green-400" />
-                <span className="text-xs text-white/40">ราคาจาก Settrade Real-time</span>
+                <Shield className={`w-3.5 h-3.5 ${isLive ? "text-green-400" : "text-yellow-400"}`} />
+                <span className="text-xs text-white/40">
+                  {isLive ? "ราคาจาก Settrade Real-time" : "ยังไม่ได้ยืนยัน real-time"}
+                </span>
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

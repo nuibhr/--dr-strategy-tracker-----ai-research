@@ -87,9 +87,9 @@ describe("determineStatus", () => {
     // The Near SL condition requires sl > current but current > sl (contradiction).
     // This is a known edge case in the current implementation.
     // For now, verify that prices near SL return Hit SL (since sl > current)
-    const status = determineStatus(3.62, 3.80, 4.00, 4.20, 3.67, true, null);
+    const status = determineStatus(3.62, 3.80, 4.00, 4.20, 3.60, true, null);
     // 3.62 <= 3.67 → Hit SL (correct behavior)
-    expect(status).toBe("Hit SL");
+    expect(status).toBe("Near SL");
   });
 
   it("should return 'Near TP' when price is within 2% of TP1", () => {
@@ -137,7 +137,7 @@ describe("calculatePerformanceMetrics", () => {
     // nearSl is computed from price, not from status field
     // TSLA80: price=3.62, SL=3.60 → distance=(3.60-3.62)/3.62*100 = -0.55% (negative, not near SL)
     // So nearSl=0 is correct (price is already below SL, counted as Hit SL)
-    expect(perf.hitSl).toBeGreaterThanOrEqual(0);
+    expect(perf.nearSl).toBe(1);
     // Win rate: 2 out of 3 are positive → ~66.67%
     expect(perf.winRate).toBeGreaterThan(0);
     // Average return: (7.38 + 3.33 - 4.74) / 3 ≈ 1.99%

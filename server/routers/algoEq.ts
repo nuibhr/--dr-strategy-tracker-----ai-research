@@ -1,10 +1,6 @@
 import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
 import { z } from "zod";
-import axios from "axios";
-
-const ALGO_EQ_BASE_URL = "https://api.algoequity.com/v1";
-const APP_ID = process.env.ALGO_EQ_APP_ID;
-const SECRET = process.env.ALGO_EQ_SECRET;
+import { fetchPriceData } from "../services/marketDataService";
 
 /**
  * Get real-time DR stock price from ALGO_EQ API
@@ -16,35 +12,15 @@ export async function getDRPrice(symbol: string): Promise<{
   timestamp: string;
 } | null> {
   try {
-    if (!APP_ID || !SECRET) {
-      console.error("[ALGO_EQ] Missing API credentials");
-      return null;
-    }
-
-    const response = await axios.get(`${ALGO_EQ_BASE_URL}/quote`, {
-      params: {
-        app_id: APP_ID,
-        symbol: symbol,
-      },
-      headers: {
-        Authorization: `Bearer ${SECRET}`,
-      },
-      timeout: 10000,
-    });
-
-    if (response.data && response.data.data) {
-      const data = response.data.data;
-      return {
-        symbol: data.symbol || symbol,
-        price: parseFloat(data.price) || 0,
-        currency: data.currency || "THB",
-        timestamp: new Date().toISOString(),
-      };
-    }
-
-    return null;
+    const data = await fetchPriceData(symbol);
+    return {
+      symbol: data.symbol || symbol,
+      price: data.price,
+      currency: "THB",
+      timestamp: data.timestamp.toISOString(),
+    };
   } catch (error) {
-    console.error(`[ALGO_EQ] Error fetching price for ${symbol}:`, error);
+    console.error(`[algoEq] Error fetching Settrade price for ${symbol}:`, error);
     return null;
   }
 }

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard, ListChecks, Bookmark, Bell, BarChart2, History,
-  Settings, PlusCircle, Scan, Menu, X, Home, Shield, LogOut
+  Settings, Scan, Menu, X, Home, Shield, LogOut, Users
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
@@ -30,7 +30,7 @@ const NAV_ITEMS: NavItem[] = [
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/admin", icon: ListChecks, label: "Manage Picks", adminOnly: true },
-  { href: "/admin/new", icon: PlusCircle, label: "Add New Pick", adminOnly: true },
+  { href: "/admin/users", icon: Users, label: "Admin Users", adminOnly: true },
   { href: "/settings", icon: Settings, label: "Settings", adminOnly: true },
 ];
 

@@ -40,12 +40,46 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  app.set("trust proxy", 1);
+  const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? "")
+    .split(",")
+    .map(origin => origin.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+
+  app.use((req, res, next) => {
+    const origin = req.headers.origin?.replace(/\/+$/, "");
+    const isAllowedOrigin =
+      origin &&
+      (allowedOrigins.includes(origin) || (!process.env.NODE_ENV || process.env.NODE_ENV === "development"));
+
+    if (isAllowedOrigin) {
+      res.header("Access-Control-Allow-Origin", origin);
+      res.header("Vary", "Origin");
+      res.header("Access-Control-Allow-Credentials", "true");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+      res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    }
+
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(204);
+    }
+
+    next();
+  });
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
   setupTelegramWebhook(app);
+
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      ok: true,
+      service: "dr-strategy-tracker-api",
+      timestamp: new Date().toISOString(),
+    });
+  });
 
   // Scheduled task handlers
   app.post("/api/scheduled/generateDailyPicks", async (req, res) => {
@@ -276,10 +310,18 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
     // Seed DR picks and price snapshots data on server start
-    import("../db").then(async db => {
-      await db.seedDrPicks();
-      await db.seedDrPriceSnapshots();
-    });
+    import("../db")
+      .then(async db => {
+        try {
+          await db.seedDrPicks();
+          await db.seedDrPriceSnapshots();
+        } catch (error) {
+          console.warn("[Database] Skipping seed data:", error instanceof Error ? error.message : error);
+        }
+      })
+      .catch(error => {
+        console.warn("[Database] Failed to load seed module:", error);
+      });
   });
 }
 

@@ -111,10 +111,8 @@ export function determineStatus(
     return "Near TP";
   }
 
-  // Check if near SL (within 2% of SL)
-  // If price is below SL, distance will be negative
-  // We want to catch when price is close to SL from above
-  const distanceToSlPercent = ((sl - currentPrice) / currentPrice) * 100;
+  // Check if near SL (within 2% above SL)
+  const distanceToSlPercent = ((currentPrice - sl) / currentPrice) * 100;
   if (distanceToSlPercent > 0 && distanceToSlPercent <= nearThreshold) {
     return "Near SL";
   }

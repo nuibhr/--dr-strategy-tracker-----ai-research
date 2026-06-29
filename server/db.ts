@@ -5,6 +5,27 @@ import { eq, and, gte, lt, desc } from "drizzle-orm";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let localDrPickId = 1;
+let localDrPriceSnapshotId = 1;
+let localDrPickEventId = 1;
+let localUserId = 2;
+const now = new Date();
+const localUsers: any[] = [
+  {
+    id: 1,
+    openId: "local-dev-user",
+    name: "Local Demo",
+    email: "local@example.test",
+    loginMethod: "local-dev",
+    role: "admin",
+    createdAt: now,
+    updatedAt: now,
+    lastSignedIn: now,
+  },
+];
+const localDrPicks: any[] = [];
+const localDrPriceSnapshots: any[] = [];
+const localDrPickEvents: any[] = [];
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
@@ -26,7 +47,26 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
+    const existing = localUsers.find(item => item.openId === user.openId);
+    const userValues = {
+      name: user.name ?? null,
+      email: user.email ?? null,
+      loginMethod: user.loginMethod ?? null,
+      role: user.role ?? (user.openId === ENV.ownerOpenId ? "admin" : "user"),
+      lastSignedIn: user.lastSignedIn ?? new Date(),
+      updatedAt: new Date(),
+    };
+
+    if (existing) {
+      Object.assign(existing, userValues);
+    } else {
+      localUsers.unshift({
+        id: localUserId++,
+        openId: user.openId,
+        createdAt: new Date(),
+        ...userValues,
+      });
+    }
     return;
   }
 
@@ -81,13 +121,85 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
+    return localUsers.find(user => user.openId === openId);
   }
 
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) {
+    return [...localUsers].sort((a, b) => {
+      return new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime();
+    });
+  }
+
+  return db.select().from(users).orderBy(desc(users.updatedAt));
+}
+
+export async function createAdminUser(input: {
+  openId: string;
+  name?: string | null;
+  email?: string | null;
+  loginMethod?: string | null;
+}) {
+  const db = await getDb();
+  const now = new Date();
+  const values: InsertUser = {
+    openId: input.openId,
+    name: input.name ?? null,
+    email: input.email ?? null,
+    loginMethod: input.loginMethod ?? "manual",
+    role: "admin",
+    lastSignedIn: now,
+  };
+
+  if (!db) {
+    const existing = localUsers.find(user => user.openId === input.openId);
+    if (existing) {
+      Object.assign(existing, values, { updatedAt: now });
+      return existing;
+    }
+
+    const localUser = {
+      id: localUserId++,
+      ...values,
+      createdAt: now,
+      updatedAt: now,
+    };
+    localUsers.unshift(localUser);
+    return localUser;
+  }
+
+  await db.insert(users).values(values).onDuplicateKeyUpdate({
+    set: {
+      name: values.name,
+      email: values.email,
+      loginMethod: values.loginMethod,
+      role: "admin",
+      lastSignedIn: now,
+    },
+  });
+
+  return getUserByOpenId(input.openId);
+}
+
+export async function updateUserRole(userId: number, role: "user" | "admin") {
+  const db = await getDb();
+  if (!db) {
+    const user = localUsers.find(item => item.id === userId);
+    if (!user) return null;
+    user.role = role;
+    user.updatedAt = new Date();
+    return user;
+  }
+
+  await db.update(users).set({ role }).where(eq(users.id, userId));
+  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return result[0] ?? null;
 }
 
 // Portfolio queries
@@ -339,7 +451,20 @@ export async function get7DayPickHistory(userId: number) {
 // DR Picks queries
 export async function createDrPick(pick: any) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) {
+    const now = new Date();
+    const localPick = {
+      status: "Waiting",
+      isActive: 1,
+      ...pick,
+      id: localDrPickId++,
+      createdAt: pick.createdAt ?? now,
+      updatedAt: pick.updatedAt ?? now,
+      closedAt: pick.closedAt ?? null,
+    };
+    localDrPicks.unshift(localPick);
+    return { insertId: localPick.id, local: true };
+  }
   
   // Import drPicks from schema
   const { drPicks } = await import("../drizzle/schema");
@@ -349,7 +474,7 @@ export async function createDrPick(pick: any) {
 
 export async function getAllDrPicks() {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) return [...localDrPicks];
   
   const { drPicks } = await import("../drizzle/schema");
   return db.select().from(drPicks).orderBy(desc(drPicks.createdAt));
@@ -357,7 +482,9 @@ export async function getAllDrPicks() {
 
 export async function getActiveDrPicks() {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) {
+    return localDrPicks.filter(pick => pick.isActive === 1 && pick.status === "Waiting");
+  }
   
   const { drPicks } = await import("../drizzle/schema");
   return db.select()
@@ -371,7 +498,7 @@ export async function getActiveDrPicks() {
 
 export async function getDrPickById(pickId: number) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) return localDrPicks.find(pick => pick.id === pickId) ?? null;
   
   const { drPicks } = await import("../drizzle/schema");
   const result = await db.select().from(drPicks).where(eq(drPicks.id, pickId)).limit(1);
@@ -380,7 +507,7 @@ export async function getDrPickById(pickId: number) {
 
 export async function getDrPickBySymbol(symbol: string) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) return localDrPicks.find(pick => pick.symbol === symbol) ?? null;
   
   const { drPicks } = await import("../drizzle/schema");
   const result = await db.select().from(drPicks).where(eq(drPicks.symbol, symbol)).limit(1);
@@ -389,7 +516,12 @@ export async function getDrPickBySymbol(symbol: string) {
 
 export async function updateDrPick(pickId: number, updates: any) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) {
+    const pick = localDrPicks.find(item => item.id === pickId);
+    if (!pick) return { rowsAffected: 0, local: true };
+    Object.assign(pick, updates, { updatedAt: updates.updatedAt ?? new Date() });
+    return { rowsAffected: 1, local: true };
+  }
   
   const { drPicks } = await import("../drizzle/schema");
   return db.update(drPicks).set(updates).where(eq(drPicks.id, pickId));
@@ -397,7 +529,11 @@ export async function updateDrPick(pickId: number, updates: any) {
 
 export async function deleteDrPick(pickId: number) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) {
+    const index = localDrPicks.findIndex(pick => pick.id === pickId);
+    if (index >= 0) localDrPicks.splice(index, 1);
+    return { rowsAffected: index >= 0 ? 1 : 0, local: true };
+  }
   
   const { drPicks } = await import("../drizzle/schema");
   return db.delete(drPicks).where(eq(drPicks.id, pickId));
@@ -406,7 +542,15 @@ export async function deleteDrPick(pickId: number) {
 // DR Price Snapshots queries
 export async function createPriceSnapshot(snapshot: any) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) {
+    const localSnapshot = {
+      ...snapshot,
+      id: localDrPriceSnapshotId++,
+      recordedAt: snapshot.recordedAt ?? new Date(),
+    };
+    localDrPriceSnapshots.unshift(localSnapshot);
+    return { insertId: localSnapshot.id, local: true };
+  }
   
   const { drPriceSnapshots } = await import("../drizzle/schema");
   return db.insert(drPriceSnapshots).values(snapshot);
@@ -414,7 +558,11 @@ export async function createPriceSnapshot(snapshot: any) {
 
 export async function getLatestPriceSnapshot(symbol: string) {
   const db = await getDb();
-  if (!db) return null;
+  if (!db) {
+    return localDrPriceSnapshots
+      .filter(snapshot => snapshot.symbol === symbol)
+      .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime())[0] ?? null;
+  }
   
   const { drPriceSnapshots } = await import("../drizzle/schema");
   const result = await db.select()
@@ -428,7 +576,13 @@ export async function getLatestPriceSnapshot(symbol: string) {
 
 export async function getPriceSnapshotHistory(symbol: string, hoursBack: number = 24) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) {
+    const cutoffTime = new Date();
+    cutoffTime.setHours(cutoffTime.getHours() - hoursBack);
+    return localDrPriceSnapshots
+      .filter(snapshot => snapshot.symbol === symbol && new Date(snapshot.recordedAt) >= cutoffTime)
+      .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+  }
   
   const { drPriceSnapshots } = await import("../drizzle/schema");
   const cutoffTime = new Date();
@@ -446,7 +600,15 @@ export async function getPriceSnapshotHistory(symbol: string, hoursBack: number 
 // DR Pick Events queries
 export async function createPickEvent(event: any) {
   const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  if (!db) {
+    const localEvent = {
+      ...event,
+      id: localDrPickEventId++,
+      createdAt: event.createdAt ?? new Date(),
+    };
+    localDrPickEvents.unshift(localEvent);
+    return { insertId: localEvent.id, local: true };
+  }
   
   const { drPickEvents } = await import("../drizzle/schema");
   return db.insert(drPickEvents).values(event);
@@ -454,7 +616,11 @@ export async function createPickEvent(event: any) {
 
 export async function getPickEvents(pickId: number) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) {
+    return localDrPickEvents
+      .filter(event => event.pickId === pickId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
   
   const { drPickEvents } = await import("../drizzle/schema");
   return db.select()
@@ -465,7 +631,12 @@ export async function getPickEvents(pickId: number) {
 
 export async function getRecentPickEvents(pickId: number, limit: number = 10) {
   const db = await getDb();
-  if (!db) return [];
+  if (!db) {
+    return localDrPickEvents
+      .filter(event => event.pickId === pickId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
+  }
   
   const { drPickEvents } = await import("../drizzle/schema");
   return db.select()

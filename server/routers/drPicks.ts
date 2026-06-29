@@ -33,7 +33,7 @@ const UpdateDrPickInput = z.object({
   reason: z.string().optional(),
   note: z.string().optional(),
   isActive: z.number().optional(),
-  closedAt: z.date().optional(),
+  closedAt: z.date().nullable().optional(),
 });
 
 export const drPicksRouter = router({
