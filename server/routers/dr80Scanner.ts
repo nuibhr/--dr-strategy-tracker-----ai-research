@@ -27,7 +27,7 @@ function getTodayDate(): string {
 
 export const dr80ScannerRouter = router({
   /**
-   * Get today's top 2 DR80 picks.
+   * Get today's top 4 DR/DRx picks.
    * Uses cache if already scanned today.
    */
   getTodaysPicks: publicProcedure
@@ -48,7 +48,7 @@ export const dr80ScannerRouter = router({
       }
 
       try {
-        const results = await scanDR80(2);
+        const results = await scanDR80(4);
         scanCache = {
           date: today,
           results,
@@ -144,7 +144,7 @@ export const dr80ScannerRouter = router({
       let results = scanCache?.date === today && !forceRefresh ? scanCache.results : null;
 
       if (!results) {
-        results = await scanDR80(2);
+        results = await scanDR80(4);
         scanCache = {
           date: today,
           results,

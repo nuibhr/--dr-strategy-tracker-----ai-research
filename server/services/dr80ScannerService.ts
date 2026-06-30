@@ -5,7 +5,7 @@
  *   2. Camarilla Pivot (entry near S3, TP at R1/R2, SL at S4)
  *   3. RSI (sweet spot 40-60, avoid >70 overbought)
  *   4. MACD (positive histogram = bullish momentum)
- * Picks top 2 candidates daily.
+ * Picks top 4 candidates daily.
  */
 
 import { getAccessToken } from "./marketDataService";
@@ -306,7 +306,7 @@ async function scoreSymbol(symbol: string): Promise<DR80ScanResult | null> {
 /**
  * Scan all DR80 symbols and return top N picks sorted by score.
  */
-export async function scanDR80(topN = 2): Promise<DR80ScanResult[]> {
+export async function scanDR80(topN = 4): Promise<DR80ScanResult[]> {
   const universe = getDRUniverse();
   console.log(`[dr80Scanner] Scanning ${universe.length} symbols...`);
 

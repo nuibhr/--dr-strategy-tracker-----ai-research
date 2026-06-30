@@ -17,6 +17,7 @@ import { getAllActiveDailyPicks, updateDailyPick, createPriceHistory } from "../
 import { getDRPrice } from "../routers/algoEq";
 import { scanDR80, DR80ScanResult } from "../services/dr80ScannerService";
 import { sendTelegramMessage, formatDR80ScanMessage } from "../services/telegramService";
+import { fetchMultiplePrices, getMarketDataStatus } from "../services/marketDataService";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -79,6 +80,73 @@ async function startServer() {
       service: "dr-strategy-tracker-api",
       timestamp: new Date().toISOString(),
     });
+  });
+
+  app.get("/api/dr/market-data/status", (_req, res) => {
+    res.json({
+      ok: true,
+      status: getMarketDataStatus(),
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  app.get("/api/dr/price/:symbol", async (req, res) => {
+    try {
+      const symbol = req.params.symbol.trim().toUpperCase();
+      if (!symbol) {
+        return res.status(400).json({ ok: false, error: "symbol-required" });
+      }
+
+      const price = await getDRPrice(symbol);
+      if (!price) {
+        return res.status(404).json({ ok: false, error: "price-not-found", symbol });
+      }
+
+      res.json({ ok: true, data: price });
+    } catch (error) {
+      console.error("[API] Error fetching DR price:", error);
+      res.status(500).json({
+        ok: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+
+  app.get("/api/dr/prices", async (req, res) => {
+    try {
+      const symbols = String(req.query.symbols ?? "")
+        .split(",")
+        .map(symbol => symbol.trim().toUpperCase())
+        .filter(Boolean);
+
+      if (symbols.length === 0) {
+        return res.status(400).json({ ok: false, error: "symbols-required" });
+      }
+
+      const prices = await fetchMultiplePrices(symbols);
+      res.json({
+        ok: true,
+        data: prices.map(price => ({
+          symbol: price.symbol,
+          price: price.price,
+          change: price.change ?? null,
+          changePercent: price.changePercent,
+          high: price.high ?? null,
+          low: price.low ?? null,
+          volume: price.volume ?? null,
+          source: price.source,
+          timestamp: price.timestamp.toISOString(),
+        })),
+      });
+    } catch (error) {
+      console.error("[API] Error fetching DR prices:", error);
+      res.status(500).json({
+        ok: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString(),
+      });
+    }
   });
 
   // Scheduled task handlers
@@ -249,7 +317,7 @@ async function startServer() {
 
       // Run the DR80 scanner
       const scanResult = await scanDR80();
-      const topPicks: DR80ScanResult[] = scanResult.slice(0, 2);
+      const topPicks: DR80ScanResult[] = scanResult.slice(0, 4);
       const totalScanned = scanResult.length;
 
       // Format and send Telegram message

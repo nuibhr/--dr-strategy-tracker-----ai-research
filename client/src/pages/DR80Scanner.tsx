@@ -452,7 +452,7 @@ export default function DR80Scanner() {
                 <span>✅ RSI 40-60 (Neutral Sweet Spot)</span>
                 <span>✅ MACD Histogram เป็นบวก (Momentum)</span>
               </div>
-              <p className="text-xs text-white/30 mt-2">Universe: {universeCount || "กำลังโหลด"} DR/DRx | คัดเลือก Top 2 ตัวที่ดีที่สุด | Auto-run ทุกวัน 09:00 น.</p>
+              <p className="text-xs text-white/30 mt-2">Universe: {universeCount || "กำลังโหลด"} DR/DRx | คัดเลือก Top 4 ตัวที่ดีที่สุด | Auto-run ทุกวัน 09:00 น.</p>
             </div>
           </div>
         </div>
