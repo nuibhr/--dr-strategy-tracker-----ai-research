@@ -7,7 +7,8 @@
 import { router, publicProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { scanDR80, DR80_UNIVERSE } from "../services/dr80ScannerService";
+import { scanDR80 } from "../services/dr80ScannerService";
+import { getDRUniverse } from "../services/drUniverse";
 import { fetchPriceData, getMarketDataStatus } from "../services/marketDataService";
 import { formatDR80ScanMessage, sendTelegramMessage } from "../services/telegramService";
 
@@ -42,6 +43,7 @@ export const dr80ScannerRouter = router({
           scannedAt: scanCache.scannedAt,
           fromCache: true,
           date: today,
+          universe: getDRUniverse().length,
         };
       }
 
@@ -58,6 +60,7 @@ export const dr80ScannerRouter = router({
           scannedAt: scanCache.scannedAt,
           fromCache: false,
           date: today,
+          universe: getDRUniverse().length,
         };
       } catch (err) {
         console.error("[dr80Scanner] Scan failed:", err);
@@ -72,16 +75,17 @@ export const dr80ScannerRouter = router({
    * Get full scan results for all DR80 symbols (for analysis/debugging).
    */
   getFullScan: publicProcedure
-    .input(z.object({ topN: z.number().min(1).max(17).optional() }).optional())
+    .input(z.object({ topN: z.number().min(1).max(500).optional() }).optional())
     .query(async ({ input }) => {
-      const topN = input?.topN ?? 17;
+      const universe = getDRUniverse();
+      const topN = input?.topN ?? universe.length;
       try {
         const results = await scanDR80(topN);
         return {
           picks: results,
           scannedAt: new Date(),
           total: results.length,
-          universe: DR80_UNIVERSE.length,
+          universe: universe.length,
         };
       } catch (err) {
         console.error("[dr80Scanner] Full scan failed:", err);
@@ -96,7 +100,8 @@ export const dr80ScannerRouter = router({
    * Get the DR80 universe list.
    */
   getUniverse: publicProcedure.query(() => {
-    return { symbols: DR80_UNIVERSE, count: DR80_UNIVERSE.length };
+    const symbols = getDRUniverse();
+    return { symbols, count: symbols.length };
   }),
 
   /**
@@ -147,7 +152,7 @@ export const dr80ScannerRouter = router({
         };
       }
 
-      const message = formatDR80ScanMessage(results, today, DR80_UNIVERSE.length);
+      const message = formatDR80ScanMessage(results, today, getDRUniverse().length);
       const sent = await sendTelegramMessage(message, "HTML");
 
       if (!sent) {

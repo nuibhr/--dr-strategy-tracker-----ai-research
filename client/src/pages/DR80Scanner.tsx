@@ -366,6 +366,7 @@ export default function DR80Scanner() {
   const scannedAt = data?.scannedAt ? new Date(data.scannedAt) : null;
   const liveQuote = integrationStatus?.sampleQuote;
   const isLive = liveQuote?.source === "settrade";
+  const universeCount = data?.universe ?? 0;
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#0d1117] min-h-screen">
@@ -451,7 +452,7 @@ export default function DR80Scanner() {
                 <span>✅ RSI 40-60 (Neutral Sweet Spot)</span>
                 <span>✅ MACD Histogram เป็นบวก (Momentum)</span>
               </div>
-              <p className="text-xs text-white/30 mt-2">Universe: 17 DR80 | คัดเลือก Top 2 ตัวที่ดีที่สุด | Auto-run ทุกวัน 09:00 น.</p>
+              <p className="text-xs text-white/30 mt-2">Universe: {universeCount || "กำลังโหลด"} DR/DRx | คัดเลือก Top 2 ตัวที่ดีที่สุด | Auto-run ทุกวัน 09:00 น.</p>
             </div>
           </div>
         </div>

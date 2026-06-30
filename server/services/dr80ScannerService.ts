@@ -9,15 +9,9 @@
  */
 
 import { getAccessToken } from "./marketDataService";
+import { getDRUniverse } from "./drUniverse";
 
 // ─── DR80 Universe ────────────────────────────────────────────────────────────
-
-export const DR80_UNIVERSE = [
-  "AAPL80", "NVDA80", "TSLA80", "META80", "GOOG80",
-  "AMZN80", "MSFT80", "AMD80",  "NFLX80", "BABA80",
-  "JD80",   "CRM80",  "AVGO80", "MA80",   "COIN80",
-  "CRWD80", "BIDU80",
-];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -189,12 +183,11 @@ function calcAtr(highs: number[], lows: number[], closes: number[], period = 14)
 // ─── Score a Symbol ───────────────────────────────────────────────────────────
 
 async function scoreSymbol(symbol: string): Promise<DR80ScanResult | null> {
-  const [candle, quote] = await Promise.all([
-    fetchCandles(symbol, 100),
-    fetchQuote(symbol),
-  ]);
+  const quote = await fetchQuote(symbol);
+  if (!quote) return null;
 
-  if (!candle || !quote) return null;
+  const candle = await fetchCandles(symbol, 100);
+  if (!candle) return null;
   const closes = candle.close ?? [];
   const highs = candle.high ?? [];
   const lows = candle.low ?? [];
@@ -314,14 +307,15 @@ async function scoreSymbol(symbol: string): Promise<DR80ScanResult | null> {
  * Scan all DR80 symbols and return top N picks sorted by score.
  */
 export async function scanDR80(topN = 2): Promise<DR80ScanResult[]> {
-  console.log(`[dr80Scanner] Scanning ${DR80_UNIVERSE.length} symbols...`);
+  const universe = getDRUniverse();
+  console.log(`[dr80Scanner] Scanning ${universe.length} symbols...`);
 
   // Scan in parallel (batches of 5 to avoid rate limiting)
   const results: DR80ScanResult[] = [];
-  const batchSize = 5;
+  const batchSize = Math.max(1, Math.min(20, Number(process.env.DR_SCAN_BATCH_SIZE ?? 8)));
 
-  for (let i = 0; i < DR80_UNIVERSE.length; i += batchSize) {
-    const batch = DR80_UNIVERSE.slice(i, i + batchSize);
+  for (let i = 0; i < universe.length; i += batchSize) {
+    const batch = universe.slice(i, i + batchSize);
     const batchResults = await Promise.all(batch.map(scoreSymbol));
     for (const r of batchResults) {
       if (r) results.push(r);
