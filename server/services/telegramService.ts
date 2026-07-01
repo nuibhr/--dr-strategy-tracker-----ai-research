@@ -1,6 +1,6 @@
 /**
  * Telegram Notification Service
- * Sends DR80 scan results to Telegram via Bot API
+ * Sends DR 23/80 scan results to Telegram via Bot API
  */
 import { DR80ScanResult } from "./dr80ScannerService";
 
@@ -55,7 +55,7 @@ export async function sendTelegramMessage(
 }
 
 /**
- * Format DR80 scan results into a Telegram message
+ * Format DR 23/80 scan results into a Telegram message
  * Uses DR80ScanResult from dr80ScannerService
  */
 export function formatDR80ScanMessage(
@@ -73,9 +73,9 @@ export function formatDR80ScanMessage(
 
   if (picks.length === 0) {
     return (
-      `🔍 <b>DR80 Daily Scanner</b>\n` +
+      `🔍 <b>DR 23/80 Daily Scanner</b>\n` +
       `📅 ${dateStr}\n\n` +
-      `❌ วันนี้ไม่มีหุ้น DR80 ที่ผ่านเกณฑ์\n` +
+      `❌ วันนี้ไม่มีหุ้น DR 23/80 ที่ผ่านเกณฑ์\n` +
       `(สแกนทั้งหมด ${totalScanned} ตัว)\n\n` +
       `💡 ตลาดอาจยังไม่เหมาะสมสำหรับการเข้าซื้อ รอสัญญาณที่ชัดเจนกว่านี้ครับ`
     );
@@ -85,7 +85,7 @@ export function formatDR80ScanMessage(
   const MAX_SCORE = 16;
 
   let msg =
-    `🎯 <b>DR80 Daily Scanner — หนุ่มนักออม</b>\n` +
+    `🎯 <b>DR 23/80 Daily Scanner — หนุ่มนักออม</b>\n` +
     `📅 ${dateStr}\n` +
     `🔍 สแกนแล้ว ${totalScanned} ตัว | คัดได้ ${picks.length} ตัว\n` +
     `━━━━━━━━━━━━━━━━━━━━\n\n`;

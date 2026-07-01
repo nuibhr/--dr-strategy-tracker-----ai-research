@@ -69,6 +69,8 @@ function PickCard({
   const positive = pick.changePct >= 0;
   const rrGood = pick.riskReward >= 1.5;
   const maxScore = 16; // 3*2 EMA + 4*2 Cam + 3 RSI + 3 MACD
+  const suffix = pick.symbol.match(/\d+$/)?.[0] ?? "";
+  const baseSymbol = suffix ? pick.symbol.slice(0, -suffix.length) : pick.symbol;
 
   const utils = trpc.useUtils();
   const alreadyInPicks = existingSymbols.includes(pick.symbol) || added;
@@ -91,7 +93,7 @@ function PickCard({
   const handleAddToPicks = () => {
     addToPicks.mutate({
       symbol: pick.symbol,
-      name: `${pick.symbol.replace("80", "")} DR 80%`,
+      name: `${baseSymbol} DR ${suffix || ""}`.trim(),
       market: "SET",
       entryDate: new Date(),
       entryPrice: pick.entry.toFixed(2),
@@ -99,7 +101,7 @@ function PickCard({
       tp2: pick.tp2.toFixed(2),
       sl: pick.sl.toFixed(2),
       reason: pick.reason,
-      note: `Added from DR80 Scanner | Score: ${pick.totalScore}/16 | EMA: ${pick.emaScore}/3 | RSI: ${pick.rsi.toFixed(1)}`,
+      note: `Added from DR 23/80 Scanner | Score: ${pick.totalScore}/16 | EMA: ${pick.emaScore}/3 | RSI: ${pick.rsi.toFixed(1)}`,
     });
   };
 
@@ -111,7 +113,7 @@ function PickCard({
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/20 to-blue-500/20 flex items-center justify-center text-xl font-black text-white border border-white/10">
-                {pick.symbol.replace("80", "")}
+                {baseSymbol}
               </div>
               <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center text-[10px] font-black text-black">
                 #{rank}
@@ -126,7 +128,7 @@ function PickCard({
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-white/40">DR 80% | SET</p>
+              <p className="text-xs text-white/40">DR {suffix || "-"} | SET</p>
             </div>
           </div>
           <div className="text-right">
@@ -330,6 +332,9 @@ export default function DR80Scanner() {
     undefined,
     { staleTime: 60 * 1000 }
   );
+  const { data: universeData } = trpc.dr80Scanner.getUniverse.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
   const sendTelegram = trpc.dr80Scanner.sendTodaysPicksToTelegram.useMutation({
     onSuccess: (result) => {
       toast.success(`ส่ง Telegram แล้ว (${result.count} picks)`);
@@ -350,7 +355,7 @@ export default function DR80Scanner() {
 
   const handleRefresh = async () => {
     setForceRefresh(true);
-    toast.loading("กำลัง scan DR80 ทั้งหมด...", { id: "scan" });
+    toast.loading("กำลัง scan DR 23/80 ทั้งหมด...", { id: "scan" });
     try {
       await refetch();
       await utils.dr80Scanner.getIntegrationStatus.invalidate();
@@ -367,6 +372,9 @@ export default function DR80Scanner() {
   const liveQuote = integrationStatus?.sampleQuote;
   const isLive = liveQuote?.source === "settrade";
   const universeCount = data?.universe ?? 0;
+  const universeSymbols = universeData?.symbols ?? [];
+  const suffix23Count = universeSymbols.filter((symbol: string) => symbol.endsWith("23")).length;
+  const suffix80Count = universeSymbols.filter((symbol: string) => symbol.endsWith("80")).length;
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#0d1117] min-h-screen">
@@ -378,7 +386,7 @@ export default function DR80Scanner() {
               <Scan className="w-4 h-4 text-purple-400" />
             </div>
             <div>
-              <h1 className="text-lg font-black text-white">DR80 Daily Scanner</h1>
+              <h1 className="text-lg font-black text-white">DR 23/80 Daily Scanner</h1>
               <p className="text-xs text-white/40">
                 คัดกรองด้วย EMA 25/50/75 + Camarilla + RSI + MACD
               </p>
@@ -445,14 +453,18 @@ export default function DR80Scanner() {
           <div className="flex items-start gap-3">
             <Zap className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-purple-300 mb-1">วิธีคัดกรอง DR80 วันนี้</p>
+              <p className="text-sm font-semibold text-purple-300 mb-1">วิธีคัดกรอง DR 23/80 วันนี้</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-white/50">
                 <span>✅ EMA 25 &gt; EMA 50 &gt; EMA 75 (Bullish Alignment)</span>
                 <span>✅ Camarilla Pivot — เข้าใกล้ S3 (Buy Zone)</span>
                 <span>✅ RSI 40-60 (Neutral Sweet Spot)</span>
                 <span>✅ MACD Histogram เป็นบวก (Momentum)</span>
               </div>
-              <p className="text-xs text-white/30 mt-2">Universe: {universeCount || "กำลังโหลด"} DR/DRx | คัดเลือก Top 4 ตัวที่ดีที่สุด | Auto-run ทุกวัน 09:00 น.</p>
+              <p className="text-xs text-white/30 mt-2">
+                Universe: {universeCount || "กำลังโหลด"} DR/DRx
+                {universeSymbols.length > 0 ? ` | 23: ${suffix23Count} | 80: ${suffix80Count}` : ""}
+                {" | "}คัดเลือก Top 4 ตัวที่ดีที่สุด | Auto-run ทุกวัน 09:00 น.
+              </p>
             </div>
           </div>
         </div>
@@ -462,7 +474,7 @@ export default function DR80Scanner() {
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="w-16 h-16 rounded-full border-4 border-purple-500/20 border-t-purple-500 animate-spin" />
             <div className="text-center">
-              <p className="text-white font-semibold">กำลัง Scan DR80 ทั้งหมด...</p>
+              <p className="text-white font-semibold">กำลัง Scan DR 23/80 ทั้งหมด...</p>
               <p className="text-white/40 text-sm mt-1">ดึงข้อมูล Candlestick จาก Settrade แล้วคำนวณ EMA/RSI/MACD</p>
             </div>
           </div>
@@ -514,7 +526,7 @@ export default function DR80Scanner() {
             </div>
             <div className="text-center">
               <p className="text-white font-semibold">ยังไม่มีผล Scan</p>
-              <p className="text-white/40 text-sm mt-1">กด "Scan ใหม่" เพื่อเริ่มคัดกรอง DR80</p>
+              <p className="text-white/40 text-sm mt-1">กด "Scan ใหม่" เพื่อเริ่มคัดกรอง DR 23/80</p>
               <Button onClick={handleRefresh} className="mt-4 bg-purple-600 hover:bg-purple-500" size="sm">
                 <Scan className="w-3.5 h-3.5 mr-2" />
                 เริ่ม Scan
