@@ -44,7 +44,7 @@ const BROAD_BASE_TICKERS = [
   "SMH", "SOXX", "SPY", "VNM", "XLE", "XLF", "XLK",
 ];
 
-const DEFAULT_DR_SUFFIXES = ["01", "80", "19"];
+const DEFAULT_DR_SUFFIXES = ["23", "80"];
 
 function parseSuffixList(value: string | undefined) {
   const suffixes = value
@@ -54,7 +54,7 @@ function parseSuffixList(value: string | undefined) {
 }
 
 const COMMON_DR_SUFFIXES = parseSuffixList(process.env.DR_ALLOWED_SUFFIXES);
-const INCLUDE_GENERATED_VARIANTS = process.env.DR_INCLUDE_GENERATED_VARIANTS === "true";
+const INCLUDE_GENERATED_VARIANTS = process.env.DR_INCLUDE_GENERATED_VARIANTS !== "false";
 
 const GENERATED_DR_CANDIDATES = BROAD_BASE_TICKERS.flatMap(ticker =>
   COMMON_DR_SUFFIXES.map(suffix => `${ticker}${suffix}`)

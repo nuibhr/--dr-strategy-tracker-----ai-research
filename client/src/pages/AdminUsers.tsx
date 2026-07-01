@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Loader2, Shield, UserCog, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, KeyRound, Loader2, Shield, Trash2, UserCog, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -99,6 +99,22 @@ export default function AdminUsersPage() {
     onError: error => toast.error(`อัปเดตสิทธิ์ไม่สำเร็จ: ${error.message}`),
   });
 
+  const resetPassword = trpc.adminUsers.resetPassword.useMutation({
+    onSuccess: async () => {
+      toast.success("Reset password สำเร็จ");
+      await utils.adminUsers.list.invalidate();
+    },
+    onError: error => toast.error(`Reset password ไม่สำเร็จ: ${error.message}`),
+  });
+
+  const deleteUser = trpc.adminUsers.deleteUser.useMutation({
+    onSuccess: async () => {
+      toast.success("ลบผู้ใช้สำเร็จ");
+      await utils.adminUsers.list.invalidate();
+    },
+    onError: error => toast.error(`ลบผู้ใช้ไม่สำเร็จ: ${error.message}`),
+  });
+
   function handleCreateUser() {
     if (!form.name.trim() || !form.email.trim() || form.password.length < 8) {
       toast.error("กรุณาใส่ชื่อ อีเมล และรหัสผ่านอย่างน้อย 8 ตัวอักษร");
@@ -111,6 +127,23 @@ export default function AdminUsersPage() {
       password: form.password,
       role: form.role,
     });
+  }
+
+  function handleResetPassword(item: AdminUser) {
+    const label = item.email || item.name || item.openId;
+    const newPassword = window.prompt(`ตั้ง password ใหม่ให้ ${label}`);
+    if (!newPassword) return;
+    if (newPassword.length < 8) {
+      toast.error("Password ต้องมีอย่างน้อย 8 ตัวอักษร");
+      return;
+    }
+    resetPassword.mutate({ userId: item.id, password: newPassword });
+  }
+
+  function handleDeleteUser(item: AdminUser) {
+    const label = item.email || item.name || item.openId;
+    if (!window.confirm(`ลบผู้ใช้ ${label}? การลบนี้ย้อนกลับไม่ได้`)) return;
+    deleteUser.mutate({ userId: item.id });
   }
 
   if (loading) {
@@ -237,7 +270,7 @@ export default function AdminUsersPage() {
                 <tbody>
                   {users.map(item => {
                     const isSelf = item.id === user?.id;
-                    const isUpdating = updateRole.isPending;
+                    const isUpdating = updateRole.isPending || resetPassword.isPending || deleteUser.isPending;
                     return (
                       <tr key={item.id} className="border-b border-white/5 hover:bg-white/3">
                         <td className="px-4 py-3">
@@ -288,6 +321,26 @@ export default function AdminUsersPage() {
                               className="h-8 border-white/10 text-white/70 hover:text-white disabled:opacity-35"
                             >
                               Make Viewer
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={isUpdating}
+                              onClick={() => handleResetPassword(item)}
+                              className="h-8 gap-1 border-white/10 text-white/70 hover:text-white"
+                            >
+                              <KeyRound className="h-3.5 w-3.5" />
+                              Reset PW
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={isUpdating || isSelf}
+                              onClick={() => handleDeleteUser(item)}
+                              className="h-8 gap-1 border-red-500/20 text-red-300 hover:text-red-200 disabled:opacity-35"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Delete
                             </Button>
                           </div>
                         </td>

@@ -230,6 +230,35 @@ export async function updateUserRole(userId: number, role: "user" | "admin") {
   return result[0] ?? null;
 }
 
+export async function updateUserPassword(userId: number, passwordHash: string) {
+  const db = await getDb();
+  if (!db) {
+    const user = localUsers.find(item => item.id === userId);
+    if (!user) return null;
+    user.passwordHash = passwordHash;
+    user.loginMethod = "password";
+    user.updatedAt = new Date();
+    return user;
+  }
+
+  await db.update(users).set({ passwordHash, loginMethod: "password" }).where(eq(users.id, userId));
+  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function deleteUserById(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    const index = localUsers.findIndex(item => item.id === userId);
+    if (index === -1) return false;
+    localUsers.splice(index, 1);
+    return true;
+  }
+
+  const result = await db.delete(users).where(eq(users.id, userId));
+  return (result[0]?.affectedRows ?? 0) > 0;
+}
+
 // Portfolio queries
 export async function createPortfolio(userId: number, portfolio: Omit<InsertPortfolio, 'userId'>) {
   const db = await getDb();

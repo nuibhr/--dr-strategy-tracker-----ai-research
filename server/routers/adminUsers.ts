@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { hashPassword } from "../_core/passwords";
 import { adminProcedure, router } from "../_core/trpc";
-import { createAdminUser, getAllUsers, updateUserRole } from "../db";
+import { createAdminUser, deleteUserById, getAllUsers, updateUserPassword, updateUserRole } from "../db";
 
 const CreateAdminUserInput = z.object({
   name: z.string().min(1, "Name is required"),
@@ -14,6 +14,15 @@ const CreateAdminUserInput = z.object({
 const UpdateUserRoleInput = z.object({
   userId: z.number().int().positive(),
   role: z.enum(["user", "admin"]),
+});
+
+const ResetPasswordInput = z.object({
+  userId: z.number().int().positive(),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+const DeleteUserInput = z.object({
+  userId: z.number().int().positive(),
 });
 
 export const adminUsersRouter = router({
@@ -74,5 +83,40 @@ export const adminUsersRouter = router({
       }
 
       return user;
+    }),
+
+  resetPassword: adminProcedure
+    .input(ResetPasswordInput)
+    .mutation(async ({ input }) => {
+      const user = await updateUserPassword(input.userId, await hashPassword(input.password));
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      return { success: true, userId: user.id };
+    }),
+
+  deleteUser: adminProcedure
+    .input(DeleteUserInput)
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.id === input.userId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You cannot delete your own account",
+        });
+      }
+
+      const deleted = await deleteUserById(input.userId);
+      if (!deleted) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      return { success: true, userId: input.userId };
     }),
 });
