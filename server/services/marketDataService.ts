@@ -77,14 +77,19 @@ function createEcdsaSignature(secret: string, content: string): string {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-export async function getAccessToken(): Promise<string> {
+export async function getAccessToken(forceRefresh = false): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  if (cachedToken && now < tokenExpiresAt - 60) {
+  if (!forceRefresh && cachedToken && now < tokenExpiresAt - 60) {
     return cachedToken;
   }
 
-  if (tokenRefreshPromise) {
+  if (!forceRefresh && tokenRefreshPromise) {
     return tokenRefreshPromise;
+  }
+
+  if (forceRefresh) {
+    cachedToken = null;
+    tokenExpiresAt = 0;
   }
 
   tokenRefreshPromise = refreshAccessToken();
@@ -132,11 +137,19 @@ interface SettradeQuote {
 }
 
 async function fetchSettradeQuote(symbol: string): Promise<SettradeQuote> {
-  const token = await getAccessToken();
   const url = `${MARKET_BASE}/quote/${symbol}`;
-  const res = await fetch(url, {
+  let token = await getAccessToken();
+  let res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
+
+  if (res.status === 401) {
+    console.warn(`[marketDataService] Settrade token rejected for ${symbol}; refreshing once`);
+    token = await getAccessToken(true);
+    res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
 
   if (!res.ok) {
     const err = await res.text();

@@ -44,7 +44,17 @@ const BROAD_BASE_TICKERS = [
   "SMH", "SOXX", "SPY", "VNM", "XLE", "XLF", "XLK",
 ];
 
-const COMMON_DR_SUFFIXES = ["80", "03", "01"];
+const DEFAULT_DR_SUFFIXES = ["01", "80", "19"];
+
+function parseSuffixList(value: string | undefined) {
+  const suffixes = value
+    ? value.split(/[\s,;|]+/).map(suffix => suffix.trim()).filter(Boolean)
+    : DEFAULT_DR_SUFFIXES;
+  return suffixes.filter(suffix => /^[0-9]+$/.test(suffix));
+}
+
+const COMMON_DR_SUFFIXES = parseSuffixList(process.env.DR_ALLOWED_SUFFIXES);
+const INCLUDE_GENERATED_VARIANTS = process.env.DR_INCLUDE_GENERATED_VARIANTS === "true";
 
 const GENERATED_DR_CANDIDATES = BROAD_BASE_TICKERS.flatMap(ticker =>
   COMMON_DR_SUFFIXES.map(suffix => `${ticker}${suffix}`)
@@ -63,8 +73,13 @@ export function getDRUniverse() {
   const extra = parseSymbolList(process.env.DR_UNIVERSE_EXTRA);
   const source = replacement.length > 0
     ? replacement
-    : [...CORE_DR_UNIVERSE, ...GENERATED_DR_CANDIDATES];
-  return Array.from(new Set([...source, ...extra])).sort();
+    : [
+        ...CORE_DR_UNIVERSE,
+        ...(INCLUDE_GENERATED_VARIANTS ? GENERATED_DR_CANDIDATES : []),
+      ];
+  return Array.from(new Set([...source, ...extra]))
+    .filter(symbol => COMMON_DR_SUFFIXES.some(suffix => symbol.endsWith(suffix)))
+    .sort();
 }
 
 export const DR80_UNIVERSE = getDRUniverse();
