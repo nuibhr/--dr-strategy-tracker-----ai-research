@@ -188,6 +188,80 @@ function calcAtr(highs: number[], lows: number[], closes: number[], period = 14)
   return recent.reduce((a, b) => a + b, 0) / recent.length;
 }
 
+function roundPrice(value: number): number {
+  return Math.max(0.01, Math.round(value * 100) / 100);
+}
+
+function chooseEntryPlan(params: {
+  currentPrice: number;
+  ema25: number;
+  camarilla: CamarillaPivots;
+  effectiveAtr: number;
+}) {
+  const { currentPrice, ema25, camarilla: cam, effectiveAtr } = params;
+  const buyZoneLow = Math.min(cam.S2, cam.S3);
+  const buyZoneHigh = Math.max(cam.S2, cam.S3);
+  const isInBuyZone = currentPrice >= buyZoneLow && currentPrice <= buyZoneHigh;
+
+  const candidates = [
+    { price: cam.S2, label: "Camarilla S2" },
+    { price: (cam.S2 + cam.S3) / 2, label: "กลางโซน Camarilla S2-S3" },
+    { price: cam.S3, label: "Camarilla S3" },
+    { price: ema25, label: "EMA25 pullback" },
+    { price: currentPrice - effectiveAtr * 0.75, label: "ย่อ 0.75 ATR" },
+  ]
+    .filter(candidate => Number.isFinite(candidate.price))
+    .filter(candidate => candidate.price > 0)
+    .filter(candidate => candidate.price <= currentPrice * 1.002)
+    .filter(candidate => candidate.price >= currentPrice * 0.92);
+
+  const scored = candidates.map(candidate => {
+    const pullbackPct = (currentPrice - candidate.price) / currentPrice;
+    let score = 0;
+
+    if (candidate.price >= buyZoneLow && candidate.price <= buyZoneHigh) score += 4;
+    if (Math.abs(candidate.price - cam.S3) <= effectiveAtr * 0.35) score += 2;
+    if (Math.abs(candidate.price - ema25) <= effectiveAtr * 0.35) score += 2;
+    if (pullbackPct >= 0.005 && pullbackPct <= 0.04) score += 2;
+    else if (pullbackPct >= 0 && pullbackPct < 0.005) score += isInBuyZone ? 2 : 0;
+    else if (pullbackPct > 0.06) score -= 1;
+
+    return { ...candidate, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score || b.price - a.price);
+  const selected = scored[0] ?? {
+    price: currentPrice - effectiveAtr * 0.75,
+    label: "ย่อ 0.75 ATR",
+    score: 0,
+  };
+
+  const rawEntry = isInBuyZone && currentPrice <= selected.price * 1.003
+    ? currentPrice
+    : selected.price;
+  const entry = roundPrice(Math.min(rawEntry, currentPrice));
+
+  const slByAtr = entry - effectiveAtr * 1.2;
+  const slByCamarilla = cam.S4 < entry ? cam.S4 - effectiveAtr * 0.1 : slByAtr;
+  const sl = roundPrice(Math.min(slByAtr, slByCamarilla));
+
+  const tp1Candidates = [entry + effectiveAtr * 1.5, cam.pivot, cam.R1].filter(price => price > entry);
+  const tp2Candidates = [entry + effectiveAtr * 2.8, cam.R2, cam.R3].filter(price => price > entry);
+  const tp1 = roundPrice(Math.max(...tp1Candidates));
+  const tp2 = roundPrice(Math.max(...tp2Candidates));
+
+  const riskReward = entry - sl > 0
+    ? Math.round(((tp1 - entry) / (entry - sl)) * 100) / 100
+    : 0;
+
+  const pullbackPct = Math.max(0, ((currentPrice - entry) / currentPrice) * 100);
+  const label = entry === roundPrice(currentPrice)
+    ? "ราคาอยู่ใน buy zone แล้ว"
+    : `รอรับ ${selected.label} (-${pullbackPct.toFixed(1)}%)`;
+
+  return { entry, tp1, tp2, sl, riskReward, label };
+}
+
 // ─── Score a Symbol ───────────────────────────────────────────────────────────
 
 async function scoreSymbol(symbol: string): Promise<DR80ScanResult | null> {
@@ -256,23 +330,11 @@ async function scoreSymbol(symbol: string): Promise<DR80ScanResult | null> {
   if (currentPrice >= cam.S3 && currentPrice <= cam.R3) camScore++;
   if (currentPrice >= cam.S2 && currentPrice <= cam.S3) camScore += 2; // ideal buy zone
 
-  // ── Entry Plan (ATR-based สำหรับ DR ราคาต่ำ) ──
-  // ใช้ ATR คำนวณ TP/SL เพื่อให้ได้ range ที่สมเหตุสมผล
-  // SL = 1.5x ATR ต่ำกว่า entry
-  // TP1 = 2x ATR สูงกว่า entry (R/R = 1.33)
-  // TP2 = 3.5x ATR สูงกว่า entry (R/R = 2.33)
-  // ถ้า ATR น้อยเกินไป (น้อยกว่า 0.5% ของราคา) ใช้ min ATR = 0.5% ของราคา
+  // ── Entry Plan ──
+  // ไม่ไล่ราคาปัจจุบัน: เลือกจุดรอรับจาก confluence ของ Camarilla S2/S3, EMA25 และ ATR pullback
   const minAtr = currentPrice * 0.005;
   const effectiveAtr = Math.max(atr, minAtr);
-
-  const entry = currentPrice;
-  const sl = Math.round((entry - effectiveAtr * 1.5) * 100) / 100;
-  const tp1 = Math.round((entry + effectiveAtr * 2.0) * 100) / 100;
-  const tp2 = Math.round((entry + effectiveAtr * 3.5) * 100) / 100;
-
-  const riskReward = entry - sl > 0
-    ? Math.round(((tp1 - entry) / (entry - sl)) * 100) / 100
-    : 0;
+  const tradePlan = chooseEntryPlan({ currentPrice, ema25, camarilla: cam, effectiveAtr });
 
   // ── Total Score ──
   // EMA: ผ่านอย่างน้อย 1 เงื่อนไขก็นับคะแนนได้ (emaScore >= 1)
@@ -288,6 +350,7 @@ async function scoreSymbol(symbol: string): Promise<DR80ScanResult | null> {
   if (histogram > 0) reasons.push("MACD momentum เป็นบวก");
   if (camScore >= 2) reasons.push(`ราคาใกล้ Camarilla S3 (Buy Zone)`);
   else if (currentPrice > cam.pivot) reasons.push("ราคาอยู่เหนือ Pivot");
+  reasons.push(tradePlan.label);
 
   // EMA reason: ผ่อนเงื่อนไขเป็น >= 1
   if (emaScore === 0) reasons.push("EMA ยังไม่เรียงตัว (ข้ามเงื่อนไขนี้)");
@@ -299,11 +362,11 @@ async function scoreSymbol(symbol: string): Promise<DR80ScanResult | null> {
     rsi, rsiScore,
     macdLine, signalLine, histogram, macdScore,
     camarilla: cam, camScore,
-    entry: Math.round(entry * 100) / 100,
-    tp1: Math.round(tp1 * 100) / 100,
-    tp2: Math.round(tp2 * 100) / 100,
-    sl: Math.round(sl * 100) / 100,
-    riskReward,
+    entry: tradePlan.entry,
+    tp1: tradePlan.tp1,
+    tp2: tradePlan.tp2,
+    sl: tradePlan.sl,
+    riskReward: tradePlan.riskReward,
     totalScore,
     reason,
   };
