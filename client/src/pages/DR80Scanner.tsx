@@ -101,7 +101,7 @@ function PickCard({
       tp2: pick.tp2.toFixed(2),
       sl: pick.sl.toFixed(2),
       reason: pick.reason,
-      note: `Added from DR 23/80 Scanner | Score: ${pick.totalScore}/16 | EMA: ${pick.emaScore}/3 | RSI: ${pick.rsi.toFixed(1)}`,
+      note: `Added from DR Scanner | Score: ${pick.totalScore}/16 | EMA: ${pick.emaScore}/3 | RSI: ${pick.rsi.toFixed(1)}`,
     });
   };
 
@@ -355,7 +355,7 @@ export default function DR80Scanner() {
 
   const handleRefresh = async () => {
     setForceRefresh(true);
-    toast.loading("กำลัง scan DR 23/80 ทั้งหมด...", { id: "scan" });
+    toast.loading("กำลัง scan DR ทั้งหมด...", { id: "scan" });
     try {
       await refetch();
       await utils.dr80Scanner.getIntegrationStatus.invalidate();
@@ -373,8 +373,16 @@ export default function DR80Scanner() {
   const isLive = liveQuote?.source === "settrade";
   const universeCount = data?.universe ?? 0;
   const universeSymbols = universeData?.symbols ?? [];
-  const suffix23Count = universeSymbols.filter((symbol: string) => symbol.endsWith("23")).length;
-  const suffix80Count = universeSymbols.filter((symbol: string) => symbol.endsWith("80")).length;
+  const suffixSummary = Object.entries(
+    universeSymbols.reduce((counts: Record<string, number>, symbol: string) => {
+      const suffix = symbol.match(/\d+$/)?.[0] ?? "อื่นๆ";
+      counts[suffix] = (counts[suffix] ?? 0) + 1;
+      return counts;
+    }, {})
+  )
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([suffix, count]) => `${suffix}: ${count}`)
+    .join(" | ");
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#0d1117] min-h-screen">
@@ -386,7 +394,7 @@ export default function DR80Scanner() {
               <Scan className="w-4 h-4 text-purple-400" />
             </div>
             <div>
-              <h1 className="text-lg font-black text-white">DR 23/80 Daily Scanner</h1>
+              <h1 className="text-lg font-black text-white">DR Daily Scanner</h1>
               <p className="text-xs text-white/40">
                 คัดกรองด้วย EMA 25/50/75 + Camarilla + RSI + MACD
               </p>
@@ -453,7 +461,7 @@ export default function DR80Scanner() {
           <div className="flex items-start gap-3">
             <Zap className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-purple-300 mb-1">วิธีคัดกรอง DR 23/80 วันนี้</p>
+              <p className="text-sm font-semibold text-purple-300 mb-1">วิธีคัดกรอง DR วันนี้</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs text-white/50">
                 <span>✅ EMA 25 &gt; EMA 50 &gt; EMA 75 (Bullish Alignment)</span>
                 <span>✅ Camarilla Pivot — เข้าใกล้ S3 (Buy Zone)</span>
@@ -462,7 +470,7 @@ export default function DR80Scanner() {
               </div>
               <p className="text-xs text-white/30 mt-2">
                 Universe: {universeCount || "กำลังโหลด"} DR/DRx
-                {universeSymbols.length > 0 ? ` | 23: ${suffix23Count} | 80: ${suffix80Count}` : ""}
+                {suffixSummary ? ` | ${suffixSummary}` : ""}
                 {" | "}คัดเลือก Top 4 ตัวที่ดีที่สุด | Auto-run ทุกวัน 09:00 น.
               </p>
             </div>
@@ -474,7 +482,7 @@ export default function DR80Scanner() {
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="w-16 h-16 rounded-full border-4 border-purple-500/20 border-t-purple-500 animate-spin" />
             <div className="text-center">
-              <p className="text-white font-semibold">กำลัง Scan DR 23/80 ทั้งหมด...</p>
+              <p className="text-white font-semibold">กำลัง Scan DR ทั้งหมด...</p>
               <p className="text-white/40 text-sm mt-1">ดึงข้อมูล Candlestick จาก Settrade แล้วคำนวณ EMA/RSI/MACD</p>
             </div>
           </div>
@@ -526,7 +534,7 @@ export default function DR80Scanner() {
             </div>
             <div className="text-center">
               <p className="text-white font-semibold">ยังไม่มีผล Scan</p>
-              <p className="text-white/40 text-sm mt-1">กด "Scan ใหม่" เพื่อเริ่มคัดกรอง DR 23/80</p>
+              <p className="text-white/40 text-sm mt-1">กด "Scan ใหม่" เพื่อเริ่มคัดกรอง DR</p>
               <Button onClick={handleRefresh} className="mt-4 bg-purple-600 hover:bg-purple-500" size="sm">
                 <Scan className="w-3.5 h-3.5 mr-2" />
                 เริ่ม Scan
