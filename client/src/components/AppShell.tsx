@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard, ListChecks, Bookmark, Bell, BarChart2, History,
-  Settings, Scan, Menu, X, Home, Shield, LogOut, Users
+  Settings, Scan, Menu, X, Home, Shield, LogOut, Users, Heart
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
@@ -56,6 +56,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   });
   const alertCount = (alertsData as unknown[])?.length ?? 0;
   const isAdmin = user?.role === "admin";
+  const donateUrl = (import.meta.env.VITE_STRIPE_DONATE_URL ?? "").trim();
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -188,6 +189,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* User profile footer */}
       <div className="p-3 border-t border-white/10">
+        {donateUrl && (
+          <a
+            href={donateUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mb-3 flex items-center justify-center gap-2 rounded-lg border border-pink-500/25 bg-pink-500/10 px-3 py-2 text-xs font-semibold text-pink-200 transition-colors hover:border-pink-400/40 hover:bg-pink-500/15 hover:text-white"
+          >
+            <Heart className="h-3.5 w-3.5" />
+            ส่งกำลังใจให้ทีมพัฒนา
+          </a>
+        )}
         <div className="flex items-center gap-2 px-1 py-1">
           <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center text-xs font-bold text-green-400 shrink-0">
             {user?.name?.charAt(0)?.toUpperCase() ?? "U"}

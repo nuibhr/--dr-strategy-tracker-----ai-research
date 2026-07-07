@@ -35,6 +35,7 @@ Required Cloudflare Pages environment variables:
 
 ```env
 VITE_API_BASE_URL=https://your-backend-domain.example
+VITE_STRIPE_DONATE_URL=
 VITE_APP_ID=
 VITE_OAUTH_PORTAL_URL=
 ```
