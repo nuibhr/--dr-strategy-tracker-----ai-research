@@ -39,6 +39,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [location, setLocation] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [donateOpen, setDonateOpen] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const utils = trpc.useUtils();
@@ -57,6 +58,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const alertCount = (alertsData as unknown[])?.length ?? 0;
   const isAdmin = user?.role === "admin";
   const donateUrl = (import.meta.env.VITE_STRIPE_DONATE_URL ?? "").trim();
+  const donateQrUrl = (import.meta.env.VITE_DONATE_QR_URL ?? "/donate-qr.jpg").trim();
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -189,7 +191,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* User profile footer */}
       <div className="p-3 border-t border-white/10">
-        {donateUrl && (
+        {donateUrl ? (
           <a
             href={donateUrl}
             target="_blank"
@@ -199,6 +201,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Heart className="h-3.5 w-3.5" />
             ส่งกำลังใจให้ทีมพัฒนา
           </a>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setDonateOpen(true)}
+            className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg border border-pink-500/25 bg-pink-500/10 px-3 py-2 text-xs font-semibold text-pink-200 transition-colors hover:border-pink-400/40 hover:bg-pink-500/15 hover:text-white"
+          >
+            <Heart className="h-3.5 w-3.5" />
+            ส่งกำลังใจให้ทีมพัฒนา
+          </button>
         )}
         <div className="flex items-center gap-2 px-1 py-1">
           <div className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center text-xs font-bold text-green-400 shrink-0">
@@ -228,6 +239,37 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-[#0d1117]">
+      {donateOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-xl border border-white/10 bg-[#111827] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <div>
+                <p className="text-sm font-bold text-white">ส่งกำลังใจให้ทีมพัฒนา</p>
+                <p className="text-xs text-white/45">สแกน QR พร้อมเพย์เพื่อสนับสนุนโปรเจกต์</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDonateOpen(false)}
+                className="rounded-lg p-1.5 text-white/50 transition-colors hover:bg-white/5 hover:text-white"
+                aria-label="Close donation QR"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="bg-white p-4">
+              <img
+                src={donateQrUrl}
+                alt="QR PromptPay สำหรับส่งกำลังใจให้ทีมพัฒนา"
+                className="mx-auto w-full max-w-[300px]"
+              />
+            </div>
+            <div className="px-4 py-3 text-center text-xs text-white/45">
+              ขอบคุณสำหรับทุกกำลังใจครับ
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-[200px] shrink-0 bg-[#0f1117] border-r border-white/10 flex-col h-screen sticky top-0">
         <SidebarContent />
