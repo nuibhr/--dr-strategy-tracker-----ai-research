@@ -11,7 +11,7 @@ import "./index.css";
 const queryClient = new QueryClient();
 
 const PRODUCTION_API_BASE_URL =
-  "https://dr-strategy-tracker-ai-research-production.up.railway.app";
+  "https://dr-strategy-tracker-api-nuideeppeak.fly.dev";
 
 const getApiUrl = () => {
   const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").trim();
