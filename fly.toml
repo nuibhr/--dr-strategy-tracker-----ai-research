@@ -1,4 +1,4 @@
-app = "dr-strategy-tracker-api"
+app = "dr-strategy-tracker-api-nuideeppeak"
 primary_region = "sin"
 
 [build]
