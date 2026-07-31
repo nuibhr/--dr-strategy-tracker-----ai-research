@@ -21,7 +21,9 @@ RUN corepack enable
 
 COPY package.json pnpm-lock.yaml ./
 COPY patches ./patches
-RUN pnpm install --prod --frozen-lockfile
+# The production server bundle still loads the shared Vite module for static
+# serving, so its Vite plugins must be present at runtime as well.
+RUN pnpm install --prod=false --frozen-lockfile
 
 COPY --from=build /app/dist ./dist
 
