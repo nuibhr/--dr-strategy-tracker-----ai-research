@@ -10,6 +10,32 @@ Pure React 19 + Tailwind 4 template with shadcn/ui baked in. **Use this README a
 - Client-only routing powered by React + Wouter.
 - Design tokens live entirely in `client/src/index.css`—keep that file intact.
 
+## DR Strategy Tracker integration
+
+The server exposes a read-only, server-to-server tRPC boundary for the DR tracker:
+
+- `integrations.dr.aiPicks` — published top picks only.
+- `integrations.dr.plan` — technical plan for one published symbol (`{ symbol }`).
+
+Both procedures require `Authorization: Bearer <DR_TRACKER_SERVICE_TOKEN>`. Set
+`DR_TRACKER_SERVICE_TOKEN` only in the backend environment; it must never use a
+`VITE_` prefix, be stored in browser storage, or be returned by an API.
+
+The integration runs the Settrade-backed DR scanner and does not fall back to mock
+prices. If Settrade credentials or live data are unavailable, no pick is published.
+The full DR universe and full scan are admin-only, and Telegram sending remains
+admin-only. No order or execution API is part of this integration.
+
+Example server-side calls (never from browser code):
+
+```bash
+curl -H "Authorization: Bearer $DR_TRACKER_SERVICE_TOKEN" \
+  "$API_BASE/api/trpc/integrations.dr.aiPicks?input=%7B%7D"
+
+curl -H "Authorization: Bearer $DR_TRACKER_SERVICE_TOKEN" \
+  "$API_BASE/api/trpc/integrations.dr.plan?input=%7B%22symbol%22%3A%22AAPL80%22%7D"
+```
+
 ## File Structure
 
 ```
