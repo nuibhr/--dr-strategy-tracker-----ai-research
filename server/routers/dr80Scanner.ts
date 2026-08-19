@@ -4,7 +4,7 @@
  * and returning daily top picks with entry plans.
  */
 
-import { router, publicProcedure } from "../_core/trpc";
+import { router, publicProcedure, adminProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { scanDR80 } from "../services/dr80ScannerService";
@@ -74,7 +74,7 @@ export const dr80ScannerRouter = router({
   /**
    * Get full scan results for all DR80 symbols (for analysis/debugging).
    */
-  getFullScan: publicProcedure
+  getFullScan: adminProcedure
     .input(z.object({ topN: z.number().min(1).max(500).optional() }).optional())
     .query(async ({ input }) => {
       const universe = getDRUniverse();
@@ -99,7 +99,7 @@ export const dr80ScannerRouter = router({
   /**
    * Get the DR80 universe list.
    */
-  getUniverse: publicProcedure.query(() => {
+  getUniverse: adminProcedure.query(() => {
     const symbols = getDRUniverse();
     return { symbols, count: symbols.length };
   }),
@@ -136,7 +136,7 @@ export const dr80ScannerRouter = router({
   /**
    * Scan and send the latest DR80 result to Telegram.
    */
-  sendTodaysPicksToTelegram: publicProcedure
+  sendTodaysPicksToTelegram: adminProcedure
     .input(z.object({ forceRefresh: z.boolean().optional() }).optional())
     .mutation(async ({ input }) => {
       const today = getTodayDate();
