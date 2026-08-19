@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   RefreshCw, TrendingUp, TrendingDown, Target, Shield,
   Zap, BarChart2, Activity, ChevronDown, ChevronUp, Clock, Scan,
-  PlusCircle, CheckCircle2, Loader2, Send, Wifi
+  PlusCircle, CheckCircle2, Loader2, Wifi
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -332,17 +332,6 @@ export default function DR80Scanner() {
     undefined,
     { staleTime: 60 * 1000 }
   );
-  const { data: universeData } = trpc.dr80Scanner.getUniverse.useQuery(undefined, {
-    staleTime: 5 * 60 * 1000,
-  });
-  const sendTelegram = trpc.dr80Scanner.sendTodaysPicksToTelegram.useMutation({
-    onSuccess: (result) => {
-      toast.success(`ส่ง Telegram แล้ว (${result.count} picks)`);
-    },
-    onError: (err) => {
-      toast.error(`ส่ง Telegram ไม่สำเร็จ: ${err.message}`);
-    },
-  });
 
   // Fetch existing picks to detect duplicates (filter active ones client-side)
   const { data: existingPicks } = trpc.drPicks.list.useQuery(
@@ -372,17 +361,6 @@ export default function DR80Scanner() {
   const liveQuote = integrationStatus?.sampleQuote;
   const isLive = liveQuote?.source === "settrade";
   const universeCount = data?.universe ?? 0;
-  const universeSymbols = universeData?.symbols ?? [];
-  const suffixSummary = Object.entries(
-    universeSymbols.reduce((counts: Record<string, number>, symbol: string) => {
-      const suffix = symbol.match(/\d+$/)?.[0] ?? "อื่นๆ";
-      counts[suffix] = (counts[suffix] ?? 0) + 1;
-      return counts;
-    }, {})
-  )
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([suffix, count]) => `${suffix}: ${count}`)
-    .join(" | ");
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#0d1117] min-h-screen">
@@ -408,16 +386,6 @@ export default function DR80Scanner() {
                 {data?.fromCache && <Badge className="bg-white/5 text-white/30 border-white/10 text-[10px]">cache</Badge>}
               </div>
             )}
-            <Button
-              onClick={() => sendTelegram.mutate({ forceRefresh: false })}
-              disabled={sendTelegram.isPending || isLoading || picks.length === 0 || !integrationStatus?.telegram.configured}
-              size="sm"
-              variant="outline"
-              className="border-white/10 text-white/70 hover:text-white gap-2"
-            >
-              {sendTelegram.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-              ส่ง Telegram
-            </Button>
             <Button
               onClick={handleRefresh}
               disabled={isLoading}
@@ -469,8 +437,7 @@ export default function DR80Scanner() {
                 <span>✅ MACD Histogram เป็นบวก (Momentum)</span>
               </div>
               <p className="text-xs text-white/30 mt-2">
-                Universe: {universeCount || "กำลังโหลด"} DR/DRx
-                {suffixSummary ? ` | ${suffixSummary}` : ""}
+                Universe: {universeCount || "กำลังโหลด"} DR/DRx (จำนวนเท่านั้น)
                 {" | "}คัดเลือก Top 4 ตัวที่ดีที่สุด | Auto-run ทุกวัน 09:00 น.
               </p>
             </div>
