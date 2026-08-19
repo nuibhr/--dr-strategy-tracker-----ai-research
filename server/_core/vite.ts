@@ -48,7 +48,12 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "../..", "dist", "public");
+  // The server is bundled into dist/index.js for production. In that bundle
+  // import.meta.dirname points at /app/dist, so resolving ../.. would
+  // incorrectly target /dist/public. Resolve from the application cwd instead;
+  // Fly runs the process with /app as its cwd and the client build is copied
+  // to /app/dist/public.
+  const distPath = path.resolve(process.cwd(), "dist", "public");
   if (!fs.existsSync(distPath)) {
     console.error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
