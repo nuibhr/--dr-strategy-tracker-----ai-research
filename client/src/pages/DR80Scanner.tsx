@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   RefreshCw, TrendingUp, TrendingDown, Target, Shield,
   Zap, BarChart2, Activity, ChevronDown, ChevronUp, Clock, Scan,
-  PlusCircle, CheckCircle2, Loader2, Wifi
+  PlusCircle, CheckCircle2, Loader2, Send, Wifi
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -323,6 +324,8 @@ function PickCard({
 export default function DR80Scanner() {
   const [forceRefresh, setForceRefresh] = useState(false);
   const utils = trpc.useUtils();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const { data, isLoading, error, refetch } = trpc.dr80Scanner.getTodaysPicks.useQuery(
     { forceRefresh },
@@ -332,6 +335,14 @@ export default function DR80Scanner() {
     undefined,
     { staleTime: 60 * 1000 }
   );
+  const sendTelegram = trpc.dr80Scanner.sendTodaysPicksToTelegram.useMutation({
+    onSuccess: (result) => {
+      toast.success(`ส่ง Telegram แล้ว (${result.count} picks)`);
+    },
+    onError: (err) => {
+      toast.error(`ส่ง Telegram ไม่สำเร็จ: ${err.message}`);
+    },
+  });
 
   // Fetch existing picks to detect duplicates (filter active ones client-side)
   const { data: existingPicks } = trpc.drPicks.list.useQuery(
@@ -385,6 +396,20 @@ export default function DR80Scanner() {
                 <span>Scan เมื่อ {scannedAt.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}</span>
                 {data?.fromCache && <Badge className="bg-white/5 text-white/30 border-white/10 text-[10px]">cache</Badge>}
               </div>
+            )}
+            {isAdmin && (
+              <Button
+                data-testid="send-telegram-button"
+                aria-label="ส่งผลสแกนไป Telegram"
+                onClick={() => sendTelegram.mutate({ forceRefresh: false })}
+                disabled={sendTelegram.isPending || isLoading || picks.length === 0 || !integrationStatus?.telegram.configured}
+                size="sm"
+                variant="outline"
+                className="border-white/10 text-white/70 hover:text-white gap-2"
+              >
+                {sendTelegram.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                ส่ง Telegram
+              </Button>
             )}
             <Button
               onClick={handleRefresh}
