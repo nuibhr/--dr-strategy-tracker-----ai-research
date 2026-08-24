@@ -1,6 +1,7 @@
 
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, portfolios, positions, alerts, telegramSettings, sheetsSync, dailyPicks, priceHistory, InsertPortfolio, InsertPosition, InsertAlert, InsertTelegramSettings, InsertDailyPick, InsertPriceHistory, InsertDrPick, InsertDrPriceSnapshot, drPicks, drPriceSnapshots, drPickEvents } from "../drizzle/schema";
+import { createPool } from "mysql2";
+import { InsertUser, users, portfolios, positions, alerts, telegramSettings, sheetsSync, dailyPicks, priceHistory, InsertPortfolio, InsertPosition, InsertAlert, InsertTelegramSettings, InsertDailyPick, InsertPriceHistory, InsertDrPick, InsertDrPriceSnapshot, drPicks, drPriceSnapshots, drPickEvents, brokerConnections, InsertBrokerConnection } from "../drizzle/schema";
 import { eq, and, gte, lt, desc } from "drizzle-orm";
 import { ENV } from './_core/env';
 
@@ -9,6 +10,7 @@ let localDrPickId = 1;
 let localDrPriceSnapshotId = 1;
 let localDrPickEventId = 1;
 let localUserId = 2;
+let localBrokerConnectionId = 1;
 const now = new Date();
 const localUsers: any[] = [
   {
@@ -19,6 +21,7 @@ const localUsers: any[] = [
     passwordHash: null,
     loginMethod: "local-dev",
     role: "admin",
+    accessEnabled: 1,
     createdAt: now,
     updatedAt: now,
     lastSignedIn: now,
@@ -27,12 +30,25 @@ const localUsers: any[] = [
 const localDrPicks: any[] = [];
 const localDrPriceSnapshots: any[] = [];
 const localDrPickEvents: any[] = [];
+const localBrokerConnections: any[] = [];
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      // TiDB Cloud Starter/Essential requires encrypted MySQL transport.
+      // Build the pool explicitly so the SSL options are also used by the
+      // long-running API process (not just Drizzle Kit migrations).
+      const connectionUrl = new URL(process.env.DATABASE_URL);
+      const pool = createPool({
+        host: connectionUrl.hostname,
+        port: Number(connectionUrl.port || 3306),
+        user: decodeURIComponent(connectionUrl.username),
+        password: decodeURIComponent(connectionUrl.password),
+        database: decodeURIComponent(connectionUrl.pathname.replace(/^\//, "")),
+        ssl: { rejectUnauthorized: true },
+      });
+      _db = drizzle(pool);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -170,7 +186,8 @@ export async function createAdminUser(input: {
   email?: string | null;
   loginMethod?: string | null;
   passwordHash?: string | null;
-  role?: "user" | "admin";
+    role?: "user" | "admin";
+    accessEnabled?: number;
 }) {
   const db = await getDb();
   const now = new Date();
@@ -181,6 +198,7 @@ export async function createAdminUser(input: {
     passwordHash: input.passwordHash ?? null,
     loginMethod: input.loginMethod ?? "password",
     role: input.role ?? "admin",
+    accessEnabled: input.accessEnabled ?? 1,
     lastSignedIn: now,
   };
 
@@ -208,6 +226,7 @@ export async function createAdminUser(input: {
       passwordHash: values.passwordHash,
       loginMethod: values.loginMethod,
       role: values.role,
+      accessEnabled: values.accessEnabled,
       lastSignedIn: now,
     },
   });
@@ -226,6 +245,22 @@ export async function updateUserRole(userId: number, role: "user" | "admin") {
   }
 
   await db.update(users).set({ role }).where(eq(users.id, userId));
+  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function updateUserAccess(userId: number, accessEnabled: boolean) {
+  const value = accessEnabled ? 1 : 0;
+  const db = await getDb();
+  if (!db) {
+    const user = localUsers.find(item => item.id === userId);
+    if (!user) return null;
+    user.accessEnabled = value;
+    user.updatedAt = new Date();
+    return user;
+  }
+
+  await db.update(users).set({ accessEnabled: value }).where(eq(users.id, userId));
   const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   return result[0] ?? null;
 }
@@ -256,6 +291,84 @@ export async function deleteUserById(userId: number) {
   }
 
   const result = await db.delete(users).where(eq(users.id, userId));
+  return (result[0]?.affectedRows ?? 0) > 0;
+}
+
+// Broker connection queries. Keep encryptedAppSecret internal to server-side callers.
+export async function getBrokerConnectionForUser(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    return localBrokerConnections.find(connection => connection.userId === userId) ?? null;
+  }
+
+  const result = await db
+    .select()
+    .from(brokerConnections)
+    .where(eq(brokerConnections.userId, userId))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function upsertBrokerConnection(
+  userId: number,
+  connection: Omit<InsertBrokerConnection, "id" | "userId" | "createdAt" | "updatedAt">
+) {
+  const db = await getDb();
+  const now = new Date();
+  const values: InsertBrokerConnection = { ...connection, userId };
+
+  if (!db) {
+    const existing = localBrokerConnections.find(item => item.userId === userId);
+    if (existing) {
+      Object.assign(existing, values, { updatedAt: now });
+      return existing;
+    }
+    const created = { id: localBrokerConnectionId++, ...values, createdAt: now, updatedAt: now };
+    localBrokerConnections.push(created);
+    return created;
+  }
+
+  await db.insert(brokerConnections).values(values).onDuplicateKeyUpdate({
+    set: {
+      provider: values.provider,
+      brokerId: values.brokerId,
+      appCode: values.appCode,
+      appIdHint: values.appIdHint,
+      encryptedAppSecret: values.encryptedAppSecret,
+      status: values.status,
+      lastCheckedAt: values.lastCheckedAt,
+      lastError: values.lastError,
+    },
+  });
+  return getBrokerConnectionForUser(userId);
+}
+
+export async function updateBrokerConnectionStatus(
+  userId: number,
+  input: Pick<InsertBrokerConnection, "status" | "lastCheckedAt" | "lastError">
+) {
+  const db = await getDb();
+  if (!db) {
+    const existing = localBrokerConnections.find(connection => connection.userId === userId);
+    if (!existing) return null;
+    Object.assign(existing, input, { updatedAt: new Date() });
+    return existing;
+  }
+
+  await db.update(brokerConnections).set(input).where(eq(brokerConnections.userId, userId));
+  return getBrokerConnectionForUser(userId);
+}
+
+export async function deleteBrokerConnectionForUser(userId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) {
+    const index = localBrokerConnections.findIndex(connection => connection.userId === userId);
+    if (index === -1) return false;
+    localBrokerConnections.splice(index, 1);
+    return true;
+  }
+
+  const result = await db.delete(brokerConnections).where(eq(brokerConnections.userId, userId));
   return (result[0]?.affectedRows ?? 0) > 0;
 }
 
