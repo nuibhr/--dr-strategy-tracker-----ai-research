@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, KeyRound, Loader2, Shield, Trash2, UserCog, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Shield, Trash2, UserCog, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ type AdminUser = {
   email: string | null;
   loginMethod: string | null;
   role: UserRole;
+  accessEnabled: boolean;
   createdAt: Date | string;
   updatedAt: Date | string;
   lastSignedIn: Date | string;
@@ -97,6 +98,14 @@ export default function AdminUsersPage() {
       await utils.auth.me.invalidate();
     },
     onError: error => toast.error(`อัปเดตสิทธิ์ไม่สำเร็จ: ${error.message}`),
+  });
+
+  const setAccessEnabled = trpc.adminUsers.setAccessEnabled.useMutation({
+    onSuccess: async () => {
+      toast.success("อัปเดตสิทธิ์การดูข้อมูลสำเร็จ");
+      await utils.adminUsers.list.invalidate();
+    },
+    onError: error => toast.error(`อัปเดตสิทธิ์การดูไม่สำเร็จ: ${error.message}`),
   });
 
   const resetPassword = trpc.adminUsers.resetPassword.useMutation({
@@ -260,7 +269,7 @@ export default function AdminUsersPage() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-white/10">
-                    {["User", "OpenID", "Login", "Last seen", "Role", "Actions"].map(header => (
+                    {["User", "OpenID", "Login", "Last seen", "Role", "View access", "Actions"].map(header => (
                       <th key={header} className="px-4 py-3 text-left font-medium text-white/40">
                         {header}
                       </th>
@@ -270,7 +279,7 @@ export default function AdminUsersPage() {
                 <tbody>
                   {users.map(item => {
                     const isSelf = item.id === user?.id;
-                    const isUpdating = updateRole.isPending || resetPassword.isPending || deleteUser.isPending;
+                    const isUpdating = updateRole.isPending || setAccessEnabled.isPending || resetPassword.isPending || deleteUser.isPending;
                     return (
                       <tr key={item.id} className="border-b border-white/5 hover:bg-white/3">
                         <td className="px-4 py-3">
@@ -303,6 +312,15 @@ export default function AdminUsersPage() {
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
+                          <Badge
+                            className={item.accessEnabled
+                              ? "border-green-500/30 bg-green-500/15 text-green-300"
+                              : "border-red-500/30 bg-red-500/15 text-red-300"}
+                          >
+                            {item.accessEnabled ? "เปิดดู" : "ปิดดู"}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
                           <div className="flex gap-2">
                             <Button
                               size="sm"
@@ -321,6 +339,16 @@ export default function AdminUsersPage() {
                               className="h-8 border-white/10 text-white/70 hover:text-white disabled:opacity-35"
                             >
                               Make Viewer
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={isUpdating || isSelf}
+                              onClick={() => setAccessEnabled.mutate({ userId: item.id, accessEnabled: !item.accessEnabled })}
+                              className="h-8 gap-1 border-white/10 text-white/70 hover:text-white disabled:opacity-35"
+                            >
+                              {item.accessEnabled ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                              {item.accessEnabled ? "ปิดสิทธิ์ดู" : "เปิดสิทธิ์ดู"}
                             </Button>
                             <Button
                               size="sm"
