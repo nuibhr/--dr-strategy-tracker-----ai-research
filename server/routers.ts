@@ -18,6 +18,7 @@ import { dr80ScannerRouter } from "./routers/dr80Scanner";
 import { marketSummaryRouter } from "./routers/marketSummary";
 import { adminUsersRouter } from "./routers/adminUsers";
 import { integrationsRouter } from "./routers/integrations";
+import { brokerConnectionRouter } from "./routers/brokerConnection";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -60,6 +61,13 @@ export const appRouter = router({
           });
         }
 
+        if (user.role !== "admin" && user.accessEnabled === 0) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "บัญชีนี้ถูกปิดสิทธิ์การเข้าดูข้อมูล กรุณาติดต่อผู้ดูแลระบบ",
+          });
+        }
+
         const sessionToken = await sdk.createSessionToken(user.openId, {
           name: user.name || user.email || "User",
           expiresInMs: ONE_YEAR_MS,
@@ -92,6 +100,7 @@ export const appRouter = router({
   marketSummary: marketSummaryRouter,
   adminUsers: adminUsersRouter,
   integrations: integrationsRouter,
+  brokerConnection: brokerConnectionRouter,
 });
 
 export type AppRouter = typeof appRouter;

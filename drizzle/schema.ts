@@ -18,6 +18,8 @@ export const users = mysqlTable("users", {
   passwordHash: text("passwordHash"),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  /** Viewer access switch. Admins can disable a user's access without deleting the account. */
+  accessEnabled: int("accessEnabled").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -25,6 +27,26 @@ export const users = mysqlTable("users", {
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+
+// Per-user broker API connection. The actual App Secret is encrypted before
+// storage and is intentionally never returned through an API response.
+export const brokerConnections = mysqlTable("brokerConnections", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  provider: mysqlEnum("provider", ["settrade"]).default("settrade").notNull(),
+  brokerId: varchar("brokerId", { length: 16 }).notNull(),
+  appCode: varchar("appCode", { length: 64 }).notNull().default("ALGO_EQ"),
+  appIdHint: varchar("appIdHint", { length: 32 }).notNull(),
+  encryptedAppSecret: text("encryptedAppSecret").notNull(),
+  status: mysqlEnum("status", ["configured", "verified", "error"]).default("configured").notNull(),
+  lastCheckedAt: timestamp("lastCheckedAt"),
+  lastError: varchar("lastError", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BrokerConnection = typeof brokerConnections.$inferSelect;
+export type InsertBrokerConnection = typeof brokerConnections.$inferInsert;
 
 // Portfolio Tracking Tables
 export const portfolios = mysqlTable("portfolios", {
@@ -194,7 +216,7 @@ export const drPriceSnapshots = mysqlTable("drPriceSnapshots", {
   price: varchar("price", { length: 50 }).notNull(),
   changePercent: varchar("changePercent", { length: 50 }),
   volume: int("volume"),
-  source: varchar("source", { length: 50 }).default("mock").notNull(), // e.g., ALGO_EQ, Mock
+  source: varchar("source", { length: 50 }).default("unknown").notNull(), // provider name; never a fabricated price
   recordedAt: timestamp("recordedAt").defaultNow().notNull(),
 });
 

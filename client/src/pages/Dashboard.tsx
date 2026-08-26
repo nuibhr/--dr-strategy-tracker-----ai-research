@@ -30,8 +30,8 @@ interface DrPick {
   reason?: string | null;
   note?: string | null;
   isActive: number;
-  currentPrice?: string;
-  returnPercent?: number;
+  currentPrice?: string | null;
+  returnPercent?: number | null;
   riskReward?: string;
   updatedAt?: string | Date;
 }
@@ -102,20 +102,6 @@ function PriceProgressBar({ sl, entry, current, tp2 }: { sl: string; entry: stri
 }
 
 // ─── Mini Sparkline ───────────────────────────────────────────────────────────
-function Sparkline({ positive }: { positive: boolean }) {
-  const pts = positive
-    ? [10, 8, 12, 9, 14, 11, 16, 13, 18, 15, 20]
-    : [20, 18, 15, 17, 13, 16, 11, 14, 9, 12, 8];
-  const max = Math.max(...pts), min = Math.min(...pts);
-  const norm = pts.map(p => 24 - ((p - min) / (max - min)) * 20);
-  const d = norm.map((y, i) => `${i === 0 ? "M" : "L"} ${i * 10} ${y}`).join(" ");
-  return (
-    <svg width="100" height="28" viewBox="0 0 100 28" className="opacity-70">
-      <path d={d} fill="none" stroke={positive ? "#22c55e" : "#ef4444"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 // ─── Alert Item ───────────────────────────────────────────────────────────────
 function AlertItem({ symbol, msg, change, time, type }: { symbol: string; msg: string; change: string; time: string; type: "success" | "warning" | "info" }) {
   const icon = type === "success" ? <CheckCircle2 className="w-4 h-4 text-green-400" /> :
@@ -139,9 +125,9 @@ function AlertItem({ symbol, msg, change, time, type }: { symbol: string; msg: s
 
 // ─── DR Pick Card ─────────────────────────────────────────────────────────────
 function DrPickCard({ pick }: { pick: DrPick }) {
-  const currentPrice = pick.currentPrice || pick.entryPrice;
-  const ret = calcReturn(pick.entryPrice, currentPrice);
-  const positive = ret >= 0;
+  const currentPrice = pick.currentPrice ? parseFloat(pick.currentPrice) : null;
+  const ret = pick.returnPercent ?? (currentPrice === null ? null : calcReturn(pick.entryPrice, String(currentPrice)));
+  const positive = ret !== null && ret >= 0;
   const [, navigate] = useLocation();
 
   return (
@@ -167,17 +153,17 @@ function DrPickCard({ pick }: { pick: DrPick }) {
       <div className="grid grid-cols-4 gap-1 text-xs mb-2">
         <div><p className="text-white/40">เข้าเมื่อ</p><p className="text-white/70">{formatDate(pick.entryDate)}</p></div>
         <div><p className="text-white/40">ราคาเข้า</p><p className="text-white font-medium">{pick.entryPrice}</p></div>
-        <div><p className="text-white/40">ราคาปัจจุบัน</p><p className={`font-bold ${positive ? "text-green-400" : "text-red-400"}`}>{currentPrice}</p></div>
-        <div><p className="text-white/40">ผลตอบแทน</p><p className={`font-bold ${positive ? "text-green-400" : "text-red-400"}`}>{positive ? "+" : ""}{ret.toFixed(2)}%</p></div>
+        <div><p className="text-white/40">ราคาปัจจุบัน</p><p className={`font-bold ${currentPrice === null ? "text-white/40" : positive ? "text-green-400" : "text-red-400"}`}>{currentPrice === null ? "—" : currentPrice.toFixed(2)}</p></div>
+        <div><p className="text-white/40">ผลตอบแทน</p><p className={`font-bold ${ret === null ? "text-white/40" : positive ? "text-green-400" : "text-red-400"}`}>{ret === null ? "—" : `${positive ? "+" : ""}${ret.toFixed(2)}%`}</p></div>
       </div>
 
       {/* Progress bar */}
       <div className="flex items-center gap-1 text-xs text-white/40 mb-1">
         <span>SL</span><span className="flex-1" /><span>Entry</span><span className="flex-1" /><span>Now</span><span className="flex-1" /><span>TP2</span>
       </div>
-      <PriceProgressBar sl={pick.sl} entry={pick.entryPrice} current={currentPrice} tp2={pick.tp2} />
+      {currentPrice !== null && <PriceProgressBar sl={pick.sl} entry={pick.entryPrice} current={currentPrice.toString()} tp2={pick.tp2} />}
       <div className="flex items-center gap-1 text-xs text-white/50 mb-3">
-        <span>{pick.sl}</span><span className="flex-1" /><span>{pick.entryPrice}</span><span className="flex-1" /><span>{currentPrice}</span><span className="flex-1" /><span>{pick.tp2}</span>
+        <span>{pick.sl}</span><span className="flex-1" /><span>{pick.entryPrice}</span><span className="flex-1" /><span>{currentPrice === null ? "—" : currentPrice.toFixed(2)}</span><span className="flex-1" /><span>{pick.tp2}</span>
       </div>
 
       {/* TP/SL badges */}
@@ -351,6 +337,9 @@ export default function Dashboard() {
   const closed = picks.filter(p => p.status === "Closed");
   const winRate = (perfData as { winRate?: number } | undefined)?.winRate ?? 0;
   const avgReturn = (perfData as { averageReturn?: number; avgReturn?: number } | undefined)?.averageReturn ?? (perfData as { avgReturn?: number } | undefined)?.avgReturn ?? 0;
+  const totalReturn = (perfData as { totalReturn?: number } | undefined)?.totalReturn;
+  const pricedPicks = (perfData as { pricedPicks?: number } | undefined)?.pricedPicks ?? 0;
+  const hasPerformanceData = pricedPicks > 0;
 
   // Filter picks for table
   const filterMap: Record<string, (p: DrPick) => boolean> = {
@@ -424,12 +413,12 @@ export default function Dashboard() {
             {/* ── Stats Cards ── */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {[
-                { label: "ACTIVE PICKS", value: activePicks.length, sub: "กำลังติดตาม", color: "text-white", positive: true },
-                { label: "HIT TP", value: hitTP.length, sub: "ถึงเป้ากำไร", color: "text-green-400", positive: true },
-                { label: "HIT SL", value: hitSL.length, sub: "ตัดขาดทุน", color: "text-red-400", positive: false },
-                { label: "NEAR TP", value: nearTP.length, sub: "ใกล้เป้ากำไร", color: "text-blue-400", positive: true },
-                { label: "NEAR SL", value: nearSL.length, sub: "ใกล้ตัดขาดทุน", color: "text-orange-400", positive: false },
-                { label: "WIN RATE", value: `${winRate.toFixed(1)}%`, sub: "อัตราชนะ", color: "text-purple-400", positive: true, isPct: true },
+                { label: "ACTIVE PICKS", value: activePicks.length, sub: "กำลังติดตาม", color: "text-white" },
+                { label: "HIT TP", value: hitTP.length, sub: "ถึงเป้ากำไร", color: "text-green-400" },
+                { label: "HIT SL", value: hitSL.length, sub: "ตัดขาดทุน", color: "text-red-400" },
+                { label: "NEAR TP", value: nearTP.length, sub: "ใกล้เป้ากำไร", color: "text-blue-400" },
+                { label: "NEAR SL", value: nearSL.length, sub: "ใกล้ตัดขาดทุน", color: "text-orange-400" },
+                { label: "WIN RATE", value: hasPerformanceData ? `${winRate.toFixed(1)}%` : "—", sub: "อัตราชนะ", color: "text-purple-400" },
               ].map(s => (
                 <div key={s.label} className="bg-[#1a1f2e] border border-white/10 rounded-xl p-4">
                   <p className="text-[10px] text-white/40 font-semibold uppercase tracking-wider mb-1">{s.label}</p>
@@ -438,7 +427,6 @@ export default function Dashboard() {
                       <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
                       <p className="text-xs text-white/40 mt-1">{s.sub}</p>
                     </div>
-                    <Sparkline positive={s.positive} />
                   </div>
                 </div>
               ))}
@@ -448,8 +436,8 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="bg-[#1a1f2e] border border-white/10 rounded-xl p-5">
                 <p className="text-xs text-white/40 uppercase tracking-wider mb-2">AVERAGE RETURN</p>
-                <p className={`text-4xl font-bold ${avgReturn >= 0 ? "text-green-400" : "text-red-400"}`}>
-                  {avgReturn >= 0 ? "+" : ""}{avgReturn.toFixed(2)}%
+                <p className={`text-4xl font-bold ${!hasPerformanceData ? "text-white/40" : avgReturn >= 0 ? "text-green-400" : "text-red-400"}`}>
+                  {!hasPerformanceData ? "—" : `${avgReturn >= 0 ? "+" : ""}${avgReturn.toFixed(2)}%`}
                 </p>
               </div>
               <div className="bg-[#1a1f2e] border border-white/10 rounded-xl p-5 flex items-center justify-between">
@@ -459,7 +447,9 @@ export default function Dashboard() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-white/40 mb-1">กำไรสุทธิรวม</p>
-                  <p className="text-2xl font-bold text-green-400">+7.23%</p>
+                  <p className={`text-2xl font-bold ${!hasPerformanceData || totalReturn === undefined ? "text-white/40" : totalReturn >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {!hasPerformanceData || totalReturn === undefined ? "—" : `${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`}
+                  </p>
                 </div>
               </div>
             </div>
@@ -538,9 +528,9 @@ export default function Dashboard() {
                     {filteredPicks.length === 0 ? (
                       <tr><td colSpan={12} className="text-center py-8 text-white/30">ไม่มีข้อมูล</td></tr>
                     ) : filteredPicks.map(pick => {
-                      const currentPrice = pick.currentPrice || pick.entryPrice;
-                      const ret = calcReturn(pick.entryPrice, currentPrice);
-                      const positive = ret >= 0;
+                      const currentPrice = pick.currentPrice ? parseFloat(pick.currentPrice) : null;
+                      const ret = pick.returnPercent ?? (currentPrice === null ? null : calcReturn(pick.entryPrice, String(currentPrice)));
+                      const positive = ret !== null && ret >= 0;
                       const rr = calcRR(pick.entryPrice, pick.tp1, pick.sl);
                       return (
                         <tr key={pick.id} className="border-b border-white/5 hover:bg-white/3 transition-colors cursor-pointer" onClick={() => window.location.href = `/dr/${pick.id}`}>
@@ -554,7 +544,7 @@ export default function Dashboard() {
                           <td className="px-4 py-3 text-white/50">{formatDate(pick.entryDate)}</td>
                           <td className="px-4 py-3 text-white font-medium">{pick.entryPrice}</td>
                           <td className="px-4 py-3">
-                            <span className={`font-bold ${positive ? "text-green-400" : "text-red-400"}`}>{currentPrice}</span>
+                            <span className={`font-bold ${currentPrice === null ? "text-white/40" : positive ? "text-green-400" : "text-red-400"}`}>{currentPrice === null ? "—" : currentPrice.toFixed(2)}</span>
                           </td>
                           <td className="px-4 py-3 text-white/70">{pick.tp1}</td>
                           <td className="px-4 py-3 text-white/70">{pick.tp2}</td>
@@ -563,7 +553,7 @@ export default function Dashboard() {
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${getStatusClass(pick.status)}`}>{pick.status}</span>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`font-bold ${positive ? "text-green-400" : "text-red-400"}`}>{positive ? "+" : ""}{ret.toFixed(2)}%</span>
+                            <span className={`font-bold ${ret === null ? "text-white/40" : positive ? "text-green-400" : "text-red-400"}`}>{ret === null ? "—" : `${positive ? "+" : ""}${ret.toFixed(2)}%`}</span>
                           </td>
                           <td className="px-4 py-3 text-white/50">{rr}</td>
                           <td className="px-4 py-3 text-white/40">{pick.updatedAt ? formatTime(pick.updatedAt) : "-"}</td>
@@ -597,7 +587,7 @@ export default function Dashboard() {
                     key={i}
                     symbol={a.symbol}
                     msg={a.message}
-                    change={a.returnPercent !== undefined ? `${a.returnPercent >= 0 ? "+" : ""}${a.returnPercent.toFixed(2)}%` : "0%"}
+                    change={a.returnPercent !== undefined && a.returnPercent !== null ? `${a.returnPercent >= 0 ? "+" : ""}${a.returnPercent.toFixed(2)}%` : "—"}
                     time={a.updatedAt ? formatTime(a.updatedAt) : "-"}
                     type={a.status === "Hit TP1" || a.status === "Hit TP2" ? "success" : a.status === "Hit SL" || a.status === "Near SL" ? "warning" : "info"}
                   />

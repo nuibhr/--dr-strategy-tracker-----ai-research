@@ -52,13 +52,13 @@ export default function DrDetail() {
     id: number; symbol: string; name: string; market: string;
     entryDate: Date; entryPrice: string; tp1: string; tp2: string; sl: string;
     status: DrStatus; reason?: string | null; note?: string | null;
-    isActive: number; currentPrice?: number; returnPercent?: number;
+    isActive: number; currentPrice?: number | null; returnPercent?: number | null;
     riskReward?: string; updatedAt?: Date; closedAt?: Date | null;
   };
 
-  const currentPrice = p.currentPrice ?? parseFloat(p.entryPrice);
-  const ret = p.returnPercent ?? 0;
-  const positive = ret >= 0;
+  const currentPrice = p.currentPrice ?? null;
+  const ret = p.returnPercent ?? null;
+  const positive = ret !== null && ret >= 0;
 
   return (
     <div className="min-h-screen bg-[#0d1117] p-6">
@@ -82,9 +82,9 @@ export default function DrDetail() {
               <p className="text-white/50">{p.name} · {p.market}</p>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-bold text-white">{currentPrice.toFixed(2)}</p>
-              <p className={`text-lg font-bold ${positive ? "text-green-400" : "text-red-400"}`}>
-                {positive ? "+" : ""}{ret.toFixed(2)}%
+              <p className={`text-3xl font-bold ${currentPrice === null ? "text-white/40" : "text-white"}`}>{currentPrice === null ? "—" : currentPrice.toFixed(2)}</p>
+              <p className={`text-lg font-bold ${ret === null ? "text-white/40" : positive ? "text-green-400" : "text-red-400"}`}>
+                {ret === null ? "ไม่มีราคาล่าสุด" : `${positive ? "+" : ""}${ret.toFixed(2)}%`}
               </p>
             </div>
           </div>

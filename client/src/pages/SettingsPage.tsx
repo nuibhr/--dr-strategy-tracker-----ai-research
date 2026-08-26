@@ -30,7 +30,7 @@ type StrategySettings = {
   autoCloseOnSl: boolean;
   notifyNearTarget: boolean;
   notifyStatusChange: boolean;
-  marketDataProvider: "mock" | "settrade" | "broker";
+  marketDataProvider: "settrade";
 };
 
 const defaultSettings: StrategySettings = {
@@ -255,23 +255,10 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-xs text-white/50">Provider</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(["settrade", "broker", "mock"] as const).map((provider) => (
-                      <Button
-                        key={provider}
-                        type="button"
-                        variant="outline"
-                        onClick={() => setSettings((current) => ({ ...current, marketDataProvider: provider }))}
-                        className={
-                          settings.marketDataProvider === provider
-                            ? "border-amber-400 bg-amber-400/10 text-amber-200"
-                            : "border-white/10 bg-white/[0.03] text-white/60"
-                        }
-                      >
-                        {provider}
-                      </Button>
-                    ))}
+                  <div className="rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-200">
+                    Settrade (ข้อมูลจริงเท่านั้น)
                   </div>
+                  <p className="text-xs text-white/35">หากเชื่อมต่อ Settrade ไม่สำเร็จ ระบบจะแสดงว่าไม่มีข้อมูล และจะไม่สร้างราคาสำรองขึ้นเอง</p>
                 </div>
                 <NumberField
                   id="autoRefreshMinutes"

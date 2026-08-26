@@ -4,7 +4,7 @@
  * and returning daily top picks with entry plans.
  */
 
-import { router, publicProcedure, adminProcedure } from "../_core/trpc";
+import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { scanDR80 } from "../services/dr80ScannerService";
@@ -30,7 +30,7 @@ export const dr80ScannerRouter = router({
    * Get today's top 4 DR/DRx picks.
    * Uses cache if already scanned today.
    */
-  getTodaysPicks: publicProcedure
+  getTodaysPicks: protectedProcedure
     .input(z.object({ forceRefresh: z.boolean().optional() }).optional())
     .query(async ({ input }) => {
       const today = getTodayDate();
@@ -107,7 +107,7 @@ export const dr80ScannerRouter = router({
   /**
    * Check live integration status for Settrade and Telegram.
    */
-  getIntegrationStatus: publicProcedure.query(async () => {
+  getIntegrationStatus: protectedProcedure.query(async () => {
     const market = getMarketDataStatus();
     const telegramConfigured = Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
 

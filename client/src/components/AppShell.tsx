@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard, ListChecks, Bookmark, Bell, BarChart2, History,
-  Settings, Scan, Menu, X, Home, Shield, LogOut, Users, Heart
+  Settings, Scan, Menu, X, Home, Shield, LogOut, Users, Heart, WalletCards
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
@@ -27,6 +27,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/alerts", icon: Bell, label: "Alerts" },
   { href: "/performance", icon: BarChart2, label: "Performance" },
   { href: "/history", icon: History, label: "History" },
+  { href: "/dividend-dashboard", icon: WalletCards, label: "Dividend Dashboard" },
+  { href: "/thai-dividend-portfolio", icon: Settings, label: "Broker Connection" },
 ];
 
 const ADMIN_NAV_ITEMS: NavItem[] = [

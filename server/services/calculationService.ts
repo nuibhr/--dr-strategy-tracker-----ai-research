@@ -24,6 +24,10 @@ export interface PerformanceMetrics {
   watchlistPicks: number;
   winRate: number;
   averageReturn: number;
+  /** Sum of returns for picks that have a real current price snapshot. */
+  totalReturn: number;
+  /** Number of picks included in return calculations. */
+  pricedPicks: number;
 }
 
 /**
@@ -217,5 +221,7 @@ export function calculatePerformanceMetrics(picks: Array<{
     watchlistPicks,
     winRate,
     averageReturn,
+    totalReturn,
+    pricedPicks: activePlusHit,
   };
 }

@@ -139,11 +139,12 @@ export default function DailyPicks() {
 
 function PickCard({ pick, index, onSelect }: { pick: any; index: number; onSelect: (pick: any) => void }) {
   const entry = parseFloat(pick.entryPrice);
-  const current = parseFloat(pick.currentPrice || pick.entryPrice);
-  const pnl = current - entry;
-  const pnlPercent = ((pnl / entry) * 100).toFixed(2);
+  const currentValue = pick.currentPrice ? parseFloat(pick.currentPrice) : Number.NaN;
+  const current = Number.isFinite(currentValue) ? currentValue : null;
+  const pnl = current === null ? null : current - entry;
+  const pnlPercent = pnl === null ? null : ((pnl / entry) * 100).toFixed(2);
 
-  const isPositive = pnl >= 0;
+  const isPositive = pnl !== null && pnl >= 0;
   const status = pick.status === "tp_hit" ? "TP Hit 🎯" : pick.status === "sl_hit" ? "SL Hit 🛑" : "Active 📈";
 
   return (
@@ -197,14 +198,13 @@ function PickCard({ pick, index, onSelect }: { pick: any; index: number; onSelec
             <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600/50">
               <p className="text-xs text-slate-400 mb-1">Current</p>
               <p className={`text-lg font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}>
-                ${current.toFixed(2)}
+                {current === null ? "—" : `$${current.toFixed(2)}`}
               </p>
             </div>
             <div className={`rounded-lg p-3 border ${isPositive ? "bg-green-500/10 border-green-500/50" : "bg-red-500/10 border-red-500/50"}`}>
               <p className="text-xs text-slate-400 mb-1">P&L</p>
               <p className={`text-lg font-bold flex items-center gap-1 ${isPositive ? "text-green-400" : "text-red-400"}`}>
-                {isPositive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                {pnlPercent}%
+                {pnl === null ? "—" : <>{isPositive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}{pnlPercent}%</>}
               </p>
             </div>
           </div>

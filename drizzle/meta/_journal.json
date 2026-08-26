@@ -36,6 +36,20 @@
       "when": 1782292443227,
       "tag": "0004_fat_zombie",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1786331284924,
+      "tag": "0005_strange_pandemic",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1787538851853,
+      "tag": "0007_solid_wolf_cub",
+      "breakpoints": true
     }
   ]
 }

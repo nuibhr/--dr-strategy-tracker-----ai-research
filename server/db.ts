@@ -2,7 +2,7 @@
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2";
 import { InsertUser, users, portfolios, positions, alerts, telegramSettings, sheetsSync, dailyPicks, priceHistory, InsertPortfolio, InsertPosition, InsertAlert, InsertTelegramSettings, InsertDailyPick, InsertPriceHistory, InsertDrPick, InsertDrPriceSnapshot, drPicks, drPriceSnapshots, drPickEvents, brokerConnections, InsertBrokerConnection } from "../drizzle/schema";
-import { eq, and, gte, lt, desc } from "drizzle-orm";
+import { eq, and, gte, lt, desc, notInArray } from "drizzle-orm";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -730,14 +730,17 @@ export async function getLatestPriceSnapshot(symbol: string) {
   const db = await getDb();
   if (!db) {
     return localDrPriceSnapshots
-      .filter(snapshot => snapshot.symbol === symbol)
+      .filter(snapshot => snapshot.symbol === symbol && !["mock", "legacy_seed", "unknown"].includes(snapshot.source))
       .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime())[0] ?? null;
   }
   
   const { drPriceSnapshots } = await import("../drizzle/schema");
   const result = await db.select()
     .from(drPriceSnapshots)
-    .where(eq(drPriceSnapshots.symbol, symbol))
+    .where(and(
+      eq(drPriceSnapshots.symbol, symbol),
+      notInArray(drPriceSnapshots.source, ["mock", "legacy_seed", "unknown"]),
+    ))
     .orderBy(desc(drPriceSnapshots.recordedAt))
     .limit(1);
   
@@ -816,6 +819,9 @@ export async function getRecentPickEvents(pickId: number, limit: number = 10) {
     .limit(limit);
 }
 
+/*
+ * Legacy demo seed data intentionally disabled. Production data must come
+ * from an admin-created pick and a live market-data snapshot.
 // Seed data for DR picks
 export async function seedDrPicks() {
   const db = await getDb();
@@ -936,3 +942,4 @@ export async function seedDrPriceSnapshots() {
   await db.insert(drPriceSnapshots).values(snapshotsToSeed);
   console.log("DR price snapshots seeded successfully.");
 }
+*/

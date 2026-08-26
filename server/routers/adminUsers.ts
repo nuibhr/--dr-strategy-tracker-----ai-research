@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { hashPassword } from "../_core/passwords";
 import { adminProcedure, router } from "../_core/trpc";
-import { createAdminUser, deleteUserById, getAllUsers, updateUserPassword, updateUserRole } from "../db";
+import { createAdminUser, deleteUserById, getAllUsers, updateUserAccess, updateUserPassword, updateUserRole } from "../db";
 
 const CreateAdminUserInput = z.object({
   name: z.string().min(1, "Name is required"),
@@ -21,6 +21,11 @@ const ResetPasswordInput = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
+const UpdateUserAccessInput = z.object({
+  userId: z.number().int().positive(),
+  accessEnabled: z.boolean(),
+});
+
 const DeleteUserInput = z.object({
   userId: z.number().int().positive(),
 });
@@ -35,6 +40,7 @@ export const adminUsersRouter = router({
       email: user.email,
       loginMethod: user.loginMethod,
       role: user.role,
+      accessEnabled: user.accessEnabled !== 0,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       lastSignedIn: user.lastSignedIn,
@@ -75,6 +81,27 @@ export const adminUsersRouter = router({
       }
 
       const user = await updateUserRole(input.userId, input.role);
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      return user;
+    }),
+
+  setAccessEnabled: adminProcedure
+    .input(UpdateUserAccessInput)
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.id === input.userId && !input.accessEnabled) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "คุณไม่สามารถปิดสิทธิ์บัญชีตัวเองได้",
+        });
+      }
+
+      const user = await updateUserAccess(input.userId, input.accessEnabled);
       if (!user) {
         throw new TRPCError({
           code: "NOT_FOUND",

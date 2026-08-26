@@ -16,6 +16,8 @@ import HistoryPage from "./pages/HistoryPage";
 import SettingsPage from "./pages/SettingsPage";
 import DR80ScannerPage from "./pages/DR80Scanner";
 import AdminUsersPage from "./pages/AdminUsers";
+import ThaiDividendPortfolio from "./pages/ThaiDividendPortfolio";
+import DividendDashboard from "./pages/DividendDashboard";
 
 function Router() {
   return (
@@ -34,6 +36,8 @@ function Router() {
       <Route path={"/admin"} component={AdminPage} />
       <Route path={"/settings"} component={SettingsPage} />
       <Route path={"/dr80-scanner"} component={DR80ScannerPage} />
+      <Route path={"/thai-dividend-portfolio"} component={ThaiDividendPortfolio} />
+      <Route path={"/dividend-dashboard"} component={DividendDashboard} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

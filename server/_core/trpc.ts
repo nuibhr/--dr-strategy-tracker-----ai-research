@@ -44,6 +44,9 @@ const requireUser = t.middleware(async opts => {
   if (!ctx.user) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
   }
+  if (ctx.user.role !== "admin" && ctx.user.accessEnabled === 0) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "บัญชีนี้ถูกปิดสิทธิ์การเข้าดูข้อมูล" });
+  }
 
   return next({
     ctx: {

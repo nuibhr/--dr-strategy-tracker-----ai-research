@@ -377,19 +377,6 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
-    // Seed DR picks and price snapshots data on server start
-    import("../db")
-      .then(async db => {
-        try {
-          await db.seedDrPicks();
-          await db.seedDrPriceSnapshots();
-        } catch (error) {
-          console.warn("[Database] Skipping seed data:", error instanceof Error ? error.message : error);
-        }
-      })
-      .catch(error => {
-        console.warn("[Database] Failed to load seed module:", error);
-      });
   });
 }
 

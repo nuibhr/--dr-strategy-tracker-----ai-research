@@ -1,4 +1,4 @@
-import { publicProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "../_core/trpc";
 import { callDataApi } from "../_core/dataApi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ function formatNumber(n: number): string {
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 export const marketSummaryRouter = router({
-  getIndices: publicProcedure.query(async () => {
+  getIndices: protectedProcedure.query(async () => {
     const now = Date.now();
     if (cachedData && now < cacheExpiry) {
       return { indices: cachedData, fromCache: true, updatedAt: cacheExpiry - CACHE_TTL };

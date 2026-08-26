@@ -142,6 +142,8 @@ describe("calculatePerformanceMetrics", () => {
     expect(perf.winRate).toBeGreaterThan(0);
     // Average return: (7.38 + 3.33 - 4.74) / 3 ≈ 1.99%
     expect(perf.averageReturn).toBeGreaterThan(0);
+    expect(perf.totalReturn).toBeCloseTo(5.97, 1);
+    expect(perf.pricedPicks).toBe(3);
   });
 
   it("should return 0 win rate when no active picks", () => {
@@ -149,5 +151,7 @@ describe("calculatePerformanceMetrics", () => {
     expect(perf.winRate).toBe(0);
     expect(perf.averageReturn).toBe(0);
     expect(perf.totalPicks).toBe(0);
+    expect(perf.totalReturn).toBe(0);
+    expect(perf.pricedPicks).toBe(0);
   });
 });

@@ -74,11 +74,12 @@ function getStatusClass(status: DrStatus) {
   }
 }
 
-function getExitPrice(pick: DrPick) {
+function getExitPrice(pick: DrPick): number | null {
   if (pick.status === "Hit TP2") return Number(pick.tp2);
   if (pick.status === "Hit TP1") return Number(pick.tp1);
   if (pick.status === "Hit SL") return Number(pick.sl);
-  return Number(pick.currentPrice ?? pick.entryPrice);
+  const current = pick.currentPrice ? Number(pick.currentPrice) : Number.NaN;
+  return Number.isFinite(current) ? current : null;
 }
 
 function getExitReason(pick: DrPick) {
@@ -100,6 +101,7 @@ export default function HistoryPage() {
     (acc, pick) => {
       const entry = Number(pick.entryPrice);
       const exit = getExitPrice(pick);
+      if (exit === null) return acc;
       const pnl = exit - entry;
       acc.realizedPnl += pnl;
       acc.returnSum += entry > 0 ? (pnl / entry) * 100 : 0;
@@ -198,10 +200,10 @@ export default function HistoryPage() {
                   <tbody>
                     {picks.map((pick) => {
                       const entry = Number(pick.entryPrice);
-                      const exit = getExitPrice(pick);
-                      const pnl = exit - entry;
-                      const returnPercent = entry > 0 ? (pnl / entry) * 100 : 0;
-                      const positive = pnl >= 0;
+      const exit = getExitPrice(pick);
+      const pnl = exit === null ? null : exit - entry;
+      const returnPercent = pnl === null || entry <= 0 ? null : (pnl / entry) * 100;
+      const positive = pnl !== null && pnl >= 0;
 
                       return (
                         <tr
@@ -214,14 +216,12 @@ export default function HistoryPage() {
                             <p className="mt-0.5 text-white/40">{pick.name}</p>
                           </td>
                           <td className="px-4 py-4 text-white">{formatCurrency(entry)}</td>
-                          <td className="px-4 py-4 text-white">{formatCurrency(exit)}</td>
-                          <td className={`px-4 py-4 font-bold ${positive ? "text-green-300" : "text-red-300"}`}>
-                            {positive ? "+" : ""}
-                            {formatCurrency(pnl)}
+                          <td className="px-4 py-4 text-white">{exit === null ? "—" : formatCurrency(exit)}</td>
+                          <td className={`px-4 py-4 font-bold ${pnl === null ? "text-white/40" : positive ? "text-green-300" : "text-red-300"}`}>
+                            {pnl === null ? "—" : `${positive ? "+" : ""}${formatCurrency(pnl)}`}
                           </td>
-                          <td className={`px-4 py-4 font-bold ${positive ? "text-green-300" : "text-red-300"}`}>
-                            {positive ? "+" : ""}
-                            {returnPercent.toFixed(2)}%
+                          <td className={`px-4 py-4 font-bold ${returnPercent === null ? "text-white/40" : positive ? "text-green-300" : "text-red-300"}`}>
+                            {returnPercent === null ? "—" : `${positive ? "+" : ""}${returnPercent.toFixed(2)}%`}
                           </td>
                           <td className="px-4 py-4">
                             <span className={`rounded-full border px-2 py-1 font-semibold ${getStatusClass(pick.status)}`}>

@@ -1,4 +1,4 @@
-import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { fetchPriceData } from "../services/marketDataService";
 
@@ -49,7 +49,7 @@ export const algoEqRouter = router({
   /**
    * Get real-time price for a single DR stock
    */
-  getPrice: publicProcedure
+  getPrice: protectedProcedure
     .input(z.object({ symbol: z.string() }))
     .query(async ({ input }) => {
       const price = await getDRPrice(input.symbol);
@@ -59,7 +59,7 @@ export const algoEqRouter = router({
   /**
    * Get real-time prices for multiple DR stocks
    */
-  getPrices: publicProcedure
+  getPrices: protectedProcedure
     .input(z.object({ symbols: z.array(z.string()) }))
     .query(async ({ input }) => {
       const prices = await getDRPrices(input.symbols);

@@ -100,10 +100,11 @@ export default function History() {
           <div className="grid gap-6">
             {history.map((pick: typeof history[0]) => {
               const entry = parseFloat(pick.entryPrice);
-              const current = pick.currentPrice ? parseFloat(pick.currentPrice) : entry;
-              const pnl = current - entry;
-              const pnlPercent = ((pnl / entry) * 100).toFixed(2);
-              const direction = current > entry ? "↑" : current < entry ? "↓" : "→";
+              const currentValue = pick.currentPrice ? parseFloat(pick.currentPrice) : Number.NaN;
+              const current = Number.isFinite(currentValue) ? currentValue : null;
+              const pnl = current === null ? null : current - entry;
+              const pnlPercent = pnl === null ? null : ((pnl / entry) * 100).toFixed(2);
+              const direction = current === null ? "" : current > entry ? "↑" : current < entry ? "↓" : "→";
 
               return (
                 <Card
@@ -139,32 +140,32 @@ export default function History() {
                       <div className="bg-slate-700/50 rounded p-3">
                         <p className="text-xs text-slate-400 mb-1">Current</p>
                         <p className="text-lg font-semibold text-white">
-                          {direction} ฿{current.toFixed(2)}
+                          {current === null ? "—" : `${direction} ฿${current.toFixed(2)}`}
                         </p>
                       </div>
                       <div className="bg-slate-700/50 rounded p-3">
                         <p className="text-xs text-slate-400 mb-1">P&L</p>
                         <p
                           className={`text-lg font-semibold ${
-                            pnl > 0 ? "text-green-400" : pnl < 0 ? "text-red-400" : "text-slate-300"
+                            pnl === null ? "text-slate-400" : pnl > 0 ? "text-green-400" : pnl < 0 ? "text-red-400" : "text-slate-300"
                           }`}
                         >
-                          ฿{pnl.toFixed(2)}
+                          {pnl === null ? "—" : `฿${pnl.toFixed(2)}`}
                         </p>
                       </div>
                       <div className="bg-slate-700/50 rounded p-3">
                         <p className="text-xs text-slate-400 mb-1">Return</p>
                         <p
                           className={`text-lg font-semibold flex items-center gap-1 ${
-                            pnl > 0 ? "text-green-400" : pnl < 0 ? "text-red-400" : "text-slate-300"
+                            pnl === null ? "text-slate-400" : pnl > 0 ? "text-green-400" : pnl < 0 ? "text-red-400" : "text-slate-300"
                           }`}
                         >
-                          {pnl > 0 ? (
+                          {pnl === null ? "—" : pnl > 0 ? (
                             <ArrowUpRight className="w-4 h-4" />
                           ) : pnl < 0 ? (
                             <ArrowDownRight className="w-4 h-4" />
                           ) : null}
-                          {pnlPercent}%
+                          {pnlPercent === null ? "" : `${pnlPercent}%`}
                         </p>
                       </div>
                     </div>

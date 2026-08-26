@@ -31,6 +31,7 @@ export async function createContext(
       passwordHash: null,
       loginMethod: "bootstrap",
       role: "admin",
+      accessEnabled: 1,
       createdAt: now,
       updatedAt: now,
       lastSignedIn: now,

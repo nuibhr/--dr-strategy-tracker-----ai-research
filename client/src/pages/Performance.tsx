@@ -12,12 +12,15 @@ interface PerfData {
   hitTp1: number;
   hitTp2: number;
   hitSl: number;
+  totalReturn: number;
+  pricedPicks: number;
 }
 
 export default function PerformancePage() {
   const [, navigate] = useLocation();
   const { data, isLoading } = trpc.drPicks.getPerformance.useQuery();
   const perf = data as PerfData | undefined;
+  const hasPerformanceData = (perf?.pricedPicks ?? 0) > 0;
 
   return (
     <div className="min-h-screen bg-[#0d1117] p-6">
@@ -31,8 +34,9 @@ export default function PerformancePage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {[
-              { label: "Win Rate", value: `${(perf?.winRate ?? 0).toFixed(1)}%`, icon: Award, color: "text-green-400", bg: "bg-green-500/10" },
-              { label: "Average Return", value: `${(perf?.averageReturn ?? 0) >= 0 ? "+" : ""}${(perf?.averageReturn ?? 0).toFixed(2)}%`, icon: TrendingUp, color: "text-blue-400", bg: "bg-blue-500/10" },
+              { label: "Win Rate", value: hasPerformanceData ? `${(perf?.winRate ?? 0).toFixed(1)}%` : "—", icon: Award, color: "text-green-400", bg: "bg-green-500/10" },
+              { label: "Average Return", value: hasPerformanceData ? `${(perf?.averageReturn ?? 0) >= 0 ? "+" : ""}${(perf?.averageReturn ?? 0).toFixed(2)}%` : "—", icon: TrendingUp, color: "text-blue-400", bg: "bg-blue-500/10" },
+              { label: "Total Return", value: hasPerformanceData ? `${(perf?.totalReturn ?? 0) >= 0 ? "+" : ""}${(perf?.totalReturn ?? 0).toFixed(2)}%` : "—", icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-500/10" },
               { label: "Total Picks", value: String(perf?.totalPicks ?? 0), icon: Target, color: "text-purple-400", bg: "bg-purple-500/10" },
               { label: "Active Picks", value: String(perf?.activePicks ?? 0), icon: Target, color: "text-yellow-400", bg: "bg-yellow-500/10" },
               { label: "Closed Picks", value: String(perf?.closedPicks ?? 0), icon: Target, color: "text-white/60", bg: "bg-white/5" },

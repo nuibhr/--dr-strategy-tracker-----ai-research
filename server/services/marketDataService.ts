@@ -26,11 +26,12 @@ export interface PriceData {
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const APP_ID = process.env.BROKER_APP_ID ?? "";
-const SECRET = process.env.BROKER_API_SECRET ?? "";
+// BROKER_* is the canonical naming. Keep the SETTRADE_* aliases so older
+// Manus deployments do not silently lose their existing credentials.
+const APP_ID = process.env.BROKER_APP_ID ?? process.env.SETTRADE_APP_ID ?? "";
+const SECRET = process.env.BROKER_API_SECRET ?? process.env.SETTRADE_APP_SECRET ?? "";
 const BROKER_ID = process.env.SETTRADE_BROKER_ID ?? "022";
 const APP_CODE = process.env.SETTRADE_APP_CODE ?? "ALGO_EQ";
-const REQUIRE_REALTIME = process.env.SETTRADE_REQUIRE_REALTIME === "true";
 const LOGIN_URL = `https://open-api.settrade.com/api/oam/v1/${BROKER_ID}/broker-apps/${APP_CODE}/login`;
 const MARKET_BASE = `https://marketapi.settrade.com/api/marketdata/v3/${BROKER_ID}`;
 
@@ -159,23 +160,6 @@ async function fetchSettradeQuote(symbol: string): Promise<SettradeQuote> {
   return (await res.json()) as SettradeQuote;
 }
 
-// ─── Mock Fallback ────────────────────────────────────────────────────────────
-
-const MOCK_PRICES: Record<string, { basePrice: number; volatility: number }> = {
-  AAPL80: { basePrice: 9.75, volatility: 0.03 },
-  NVDA80: { basePrice: 33.25, volatility: 0.03 },
-  TSLA80: { basePrice: 2.52, volatility: 0.04 },
-  META80: { basePrice: 2.34, volatility: 0.03 },
-  GOOG80: { basePrice: 5.75, volatility: 0.03 },
-};
-
-function generateMockPrice(symbol: string): number {
-  const config = MOCK_PRICES[symbol];
-  if (!config) return 0;
-  const variation = (Math.random() - 0.5) * 2 * config.volatility;
-  return parseFloat((config.basePrice * (1 + variation)).toFixed(2));
-}
-
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 function hasCredentials(): boolean {
@@ -188,50 +172,30 @@ export function getMarketDataStatus() {
     brokerId: BROKER_ID,
     appCode: APP_CODE,
     hasCredentials: hasCredentials(),
-    requireRealtime: REQUIRE_REALTIME,
     tokenCached: Boolean(cachedToken && Math.floor(Date.now() / 1000) < tokenExpiresAt - 60),
   };
 }
 
 /**
  * Fetch real-time price data for a DR symbol.
- * Falls back to mock data if credentials are missing or API call fails.
+ * Never fabricates a price: missing credentials or an API failure is returned
+ * to the caller so the UI can show that live data is unavailable.
  */
 export async function fetchPriceData(symbol: string): Promise<PriceData> {
-  if (hasCredentials()) {
-    try {
-      const q = await fetchSettradeQuote(symbol);
-      return {
-        symbol: q.symbol,
-        price: q.last,
-        change: q.change,
-        changePercent: q.percentChange,
-        high: q.high,
-        low: q.low,
-        volume: q.totalVolume,
-        source: "settrade",
-        timestamp: new Date(),
-      };
-    } catch (err) {
-      console.error(
-        `[marketDataService] Settrade API error for ${symbol}${REQUIRE_REALTIME ? "" : ", falling back to mock"}:`,
-        err
-      );
-      if (REQUIRE_REALTIME) {
-        throw err;
-      }
-    }
+  if (!hasCredentials()) {
+    throw new Error("Settrade credentials are not configured; live price unavailable");
   }
 
-  // Mock fallback
-  const price = generateMockPrice(symbol);
-  const base = MOCK_PRICES[symbol]?.basePrice ?? price;
+  const q = await fetchSettradeQuote(symbol);
   return {
-    symbol,
-    price,
-    changePercent: parseFloat((((price - base) / base) * 100).toFixed(2)),
-    volume: Math.floor(Math.random() * 1_000_000),
-    source: "mock",
+    symbol: q.symbol,
+    price: q.last,
+    change: q.change,
+    changePercent: q.percentChange,
+    high: q.high,
+    low: q.low,
+    volume: q.totalVolume,
+    source: "settrade",
     timestamp: new Date(),
   };
 }
@@ -241,14 +205,4 @@ export async function fetchPriceData(symbol: string): Promise<PriceData> {
  */
 export async function fetchMultiplePrices(symbols: string[]): Promise<PriceData[]> {
   return Promise.all(symbols.map((s) => fetchPriceData(s)));
-}
-
-/** @deprecated Use fetchPriceData instead */
-export function getMockPriceConfig(symbol: string) {
-  return MOCK_PRICES[symbol] ?? null;
-}
-
-/** @deprecated Use fetchPriceData instead */
-export function updateMockPriceConfig(symbol: string, basePrice: number, volatility: number) {
-  MOCK_PRICES[symbol] = { basePrice, volatility };
 }

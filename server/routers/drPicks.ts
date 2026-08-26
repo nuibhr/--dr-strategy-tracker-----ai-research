@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "../_core/trpc";
 import * as db from "../db";
 import * as marketDataService from "../services/marketDataService";
 import * as calculationService from "../services/calculationService";
@@ -40,21 +40,26 @@ export const drPicksRouter = router({
   /**
    * Get all DR picks
    */
-  list: publicProcedure.query(async () => {
+  list: protectedProcedure.query(async () => {
     try {
       const picks = await db.getAllDrPicks();
       // Merge latest price snapshot into each pick
       const picksWithPrices = await Promise.all(picks.map(async (pick) => {
         const latestPrice = await db.getLatestPriceSnapshot(pick.symbol);
-        const currentPrice = latestPrice ? parseFloat(latestPrice.price) : parseFloat(pick.entryPrice);
-        const returnPct = calculationService.calculateReturnPercent(parseFloat(pick.entryPrice), currentPrice);
+        const parsedPrice = latestPrice ? Number.parseFloat(latestPrice.price) : Number.NaN;
+        const currentPrice = Number.isFinite(parsedPrice) ? parsedPrice : null;
+        const returnPct = currentPrice === null
+          ? null
+          : calculationService.calculateReturnPercent(currentPrice, parseFloat(pick.entryPrice));
         const rr = calculationService.calculateRiskRewardRatio(parseFloat(pick.entryPrice), parseFloat(pick.tp1), parseFloat(pick.sl));
         return {
           ...pick,
-          currentPrice: currentPrice.toFixed(2),
+          currentPrice: currentPrice === null ? null : currentPrice.toFixed(2),
           returnPercent: returnPct,
           riskReward: rr,
           changePercent: latestPrice?.changePercent ?? null,
+          priceSource: latestPrice?.source ?? null,
+          priceRecordedAt: latestPrice?.recordedAt ?? null,
         };
       }));
       return picksWithPrices;
@@ -67,7 +72,7 @@ export const drPicksRouter = router({
   /**
    * Get DR pick by ID with calculated metrics
    */
-  getById: publicProcedure
+  getById: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input }) => {
       try {
@@ -81,23 +86,26 @@ export const drPicksRouter = router({
 
         // Get latest price
         const latestPrice = await db.getLatestPriceSnapshot(pick.symbol);
-        const currentPrice = latestPrice ? parseFloat(latestPrice.price) : parseFloat(pick.entryPrice);
+        const parsedPrice = latestPrice ? Number.parseFloat(latestPrice.price) : Number.NaN;
+        const currentPrice = Number.isFinite(parsedPrice) ? parsedPrice : null;
 
         // Calculate metrics
-        const metrics = calculationService.calculateMetrics(
-          currentPrice,
-          parseFloat(pick.entryPrice),
-          parseFloat(pick.tp1),
-          parseFloat(pick.tp2),
-          parseFloat(pick.sl),
-          pick.isActive === 1,
-          pick.closedAt
-        );
+        const metrics = currentPrice === null ? null : calculationService.calculateMetrics(
+            currentPrice,
+            parseFloat(pick.entryPrice),
+            parseFloat(pick.tp1),
+            parseFloat(pick.tp2),
+            parseFloat(pick.sl),
+            pick.isActive === 1,
+            pick.closedAt
+          );
 
         return {
           ...pick,
           currentPrice,
           metrics,
+          priceSource: latestPrice?.source ?? null,
+          priceRecordedAt: latestPrice?.recordedAt ?? null,
         };
       } catch (error) {
         console.error("[drPicks.getById] Error:", error);
@@ -242,14 +250,16 @@ export const drPicksRouter = router({
   /**
    * Get alerts (picks that hit TP/SL or near TP/SL)
    */
-  getAlerts: publicProcedure.query(async () => {
+  getAlerts: protectedProcedure.query(async () => {
     try {
       const picks = await db.getAllDrPicks();
       const alerts = [];
 
       for (const pick of picks) {
         const latestPrice = await db.getLatestPriceSnapshot(pick.symbol);
-        const currentPrice = latestPrice ? parseFloat(latestPrice.price) : parseFloat(pick.entryPrice);
+        if (!latestPrice) continue;
+        const currentPrice = Number.parseFloat(latestPrice.price);
+        if (!Number.isFinite(currentPrice)) continue;
 
         const metrics = calculationService.calculateMetrics(
           currentPrice,
@@ -289,7 +299,7 @@ export const drPicksRouter = router({
   /**
    * Refresh prices for all picks
    */
-  refreshPrices: publicProcedure.mutation(async () => {
+  refreshPrices: protectedProcedure.mutation(async () => {
     try {
       const picks = await db.getAllDrPicks();
       const results = [];
@@ -363,14 +373,16 @@ export const drPicksRouter = router({
   /**
    * Get performance metrics
    */
-  getPerformance: publicProcedure.query(async () => {
+  getPerformance: protectedProcedure.query(async () => {
     try {
       const picks = await db.getAllDrPicks();
       const picksWithMetrics = [];
 
       for (const pick of picks) {
         const latestPrice = await db.getLatestPriceSnapshot(pick.symbol);
-        const currentPrice = latestPrice ? parseFloat(latestPrice.price) : parseFloat(pick.entryPrice);
+        if (!latestPrice) continue;
+        const currentPrice = Number.parseFloat(latestPrice.price);
+        if (!Number.isFinite(currentPrice)) continue;
 
         picksWithMetrics.push({
           currentPrice,
