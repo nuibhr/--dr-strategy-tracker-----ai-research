@@ -446,7 +446,7 @@ export default function Dashboard() {
                   <p className="text-4xl font-bold text-white">{closed.length}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-white/40 mb-1">กำไรสุทธิรวม</p>
+                  <p className="text-xs text-white/40 mb-1">ผลตอบแทนรวมจากราคาจริง</p>
                   <p className={`text-2xl font-bold ${!hasPerformanceData || totalReturn === undefined ? "text-white/40" : totalReturn >= 0 ? "text-green-400" : "text-red-400"}`}>
                     {!hasPerformanceData || totalReturn === undefined ? "—" : `${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`}
                   </p>
