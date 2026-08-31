@@ -4,6 +4,16 @@ compatibility_date = "2026-08-28"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
+[vars]
+# Public/non-secret runtime defaults. Keep credentials in Worker Secrets.
+FRONTEND_ORIGIN = "https://dr-strategy-tracker-----ai-research.pages.dev"
+SETTRADE_BROKER_ID = "022"
+SETTRADE_APP_CODE = "ALGO_EQ"
+SETTRADE_REQUIRE_REALTIME = "true"
+DR_ALLOWED_SUFFIXES = "23,80"
+DR_INCLUDE_GENERATED_VARIANTS = "false"
+DR_SCAN_BATCH_SIZE = "8"
+
 [[containers]]
 class_name = "DrStrategyTrackerContainer"
 image = "./Dockerfile"
