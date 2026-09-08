@@ -11,6 +11,7 @@ let localDrPriceSnapshotId = 1;
 let localDrPickEventId = 1;
 let localUserId = 2;
 let localBrokerConnectionId = 1;
+let warnedAboutMissingDatabaseUrl = false;
 const now = new Date();
 const localUsers: any[] = [
   {
@@ -34,6 +35,11 @@ const localBrokerConnections: any[] = [];
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
+  if (!_db && !process.env.DATABASE_URL && !warnedAboutMissingDatabaseUrl) {
+    warnedAboutMissingDatabaseUrl = true;
+    console.warn("[Database] DATABASE_URL is not configured; using in-memory fallback. Data will not persist after restart.");
+  }
+
   if (!_db && process.env.DATABASE_URL) {
     try {
       // TiDB Cloud Starter/Essential requires encrypted MySQL transport.
