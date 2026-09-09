@@ -44,6 +44,15 @@ npm run dev
 
 การล็อกอินด้วยอีเมล/รหัสผ่านใช้ `ADMIN_EMAIL` และ `ADMIN_PASSWORD` จาก `.env` เดียวกัน ไม่ได้ใช้ข้อมูลจาก Cloudflare หรือ Fly
 
+## ลิงก์ใช้งานแบบ manual
+
+หลังล็อกอินแล้วใช้ลิงก์แยกได้:
+
+- `/dr` — หน้า DR80 Scanner และปุ่มส่ง Telegram ด้วยตนเอง
+- `/manual-plan` — Admin กรอก Entry/TP1/TP2/SL และเผยแพร่แผนเอง
+
+โหมดนี้ไม่ต้องใช้ Cloudflare Container หรือ scheduled worker การส่งแผนและการสแกนจะเกิดเมื่อกดปุ่มเอง
+
 ## 5. เปิดโหมด Production หลัง Build
 
 ```powershell

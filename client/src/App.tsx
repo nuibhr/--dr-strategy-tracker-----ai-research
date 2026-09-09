@@ -25,6 +25,7 @@ function Router() {
     <Switch>
       <Route path={"/"} component={Dashboard} />
       <Route path={"/dashboard"} component={Dashboard} />
+      <Route path={"/dr"} component={DR80ScannerPage} />
       <Route path={"/dr/:id"} component={DrDetail} />
       <Route path={"/dr-picks"} component={DrPicksPage} />
       <Route path={"/watchlist"} component={WatchlistPage} />
@@ -36,6 +37,7 @@ function Router() {
       <Route path={"/admin"} component={AdminPage} />
       <Route path={"/settings"} component={SettingsPage} />
       <Route path={"/dr80-scanner"} component={DR80ScannerPage} />
+      <Route path={"/manual-plan"} component={AdminPage} />
       <Route path={"/thai-dividend-portfolio"} component={ThaiDividendPortfolio} />
       <Route path={"/dividend-dashboard"} component={DividendDashboard} />
       <Route path={"/404"} component={NotFound} />
