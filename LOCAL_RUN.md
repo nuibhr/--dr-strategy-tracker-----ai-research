@@ -55,6 +55,20 @@ npm run dev
 
 โหมดนี้ไม่ต้องใช้ Cloudflare Container หรือ scheduled worker การส่งแผนและการสแกนจะเกิดเมื่อกดปุ่มเอง
 
+## ถ้าต้องการให้คนอื่นเปิดจากอินเทอร์เน็ต
+
+เครื่องที่รัน server ต้องเปิดค้างไว้ จากนั้นใช้ Cloudflare Tunnel แบบชั่วคราว (ไม่มี Container และไม่มีค่า Worker):
+
+```powershell
+cloudflared tunnel --url http://localhost:3000
+```
+
+คำสั่งจะแสดง URL `trycloudflare.com` ให้ส่งต่อได้ ลิงก์จะเปลี่ยนเมื่อเริ่มใหม่ และต้องใส่ `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `DATABASE_URL` ให้ครบก่อนเปิดแชร์ ห้ามใช้ `LOCAL_DEV_BYPASS_AUTH=true`
+
+ถ้าพอร์ต 3000 ถูกใช้อยู่ ให้ใช้พอร์ตที่โปรแกรมแจ้ง เช่น `cloudflared tunnel --url http://localhost:3001`
+
+Cloudflare Pages อย่างเดียวไม่สามารถรัน Express, เชื่อม TiDB หรือเรียก Settrade ได้ จึงไม่ควรตัด backend ออกแล้วคาดหวังให้หน้า static ทำงานครบ
+
 ## 5. เปิดโหมด Production หลัง Build
 
 ```powershell
