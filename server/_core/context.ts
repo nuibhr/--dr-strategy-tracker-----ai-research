@@ -21,7 +21,14 @@ export async function createContext(
     user = null;
   }
 
-  if (!user && !ENV.isProduction && !ENV.oAuthServerUrl) {
+  // Never expose the development bootstrap account on a shared/local tunnel.
+  // It is available only when explicitly opted into for private testing.
+  if (
+    !user &&
+    !ENV.isProduction &&
+    !ENV.oAuthServerUrl &&
+    process.env.LOCAL_DEV_BYPASS_AUTH === "true"
+  ) {
     const now = new Date();
     user = {
       id: 1,
