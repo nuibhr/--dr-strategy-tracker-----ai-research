@@ -1,4 +1,6 @@
 import { Express } from "express";
+import { timingSafeEqual } from "node:crypto";
+import { sdk } from "./sdk";
 
 /**
  * Telegram Webhook Handler
@@ -18,6 +20,16 @@ export function setupTelegramWebhook(app: Express) {
    * Receives updates from Telegram bot
    */
   app.post("/api/telegram/webhook", async (req, res) => {
+    const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (!expected || !/^[A-Za-z0-9_-]{16,256}$/.test(expected)) {
+      return res.status(503).json({ ok: false, error: "webhook-not-configured" });
+    }
+    const supplied = req.get("X-Telegram-Bot-Api-Secret-Token") ?? "";
+    const expectedBytes = Buffer.from(expected);
+    const suppliedBytes = Buffer.from(supplied);
+    if (expectedBytes.length !== suppliedBytes.length || !timingSafeEqual(expectedBytes, suppliedBytes)) {
+      return res.status(403).json({ ok: false, error: "invalid-webhook-secret" });
+    }
     try {
       const update = req.body;
 
@@ -35,7 +47,6 @@ export function setupTelegramWebhook(app: Express) {
           body: JSON.stringify({
             chat_id: chatId,
             text: message,
-            parse_mode: "Markdown",
           }),
         });
 
@@ -56,14 +67,27 @@ export function setupTelegramWebhook(app: Express) {
   });
 
   /**
-   * GET /api/telegram/webhook/set
+   * POST /api/telegram/webhook/set (admin only)
    * Sets the webhook URL for Telegram bot
    */
-  app.get("/api/telegram/webhook/set", async (req, res) => {
+  app.get("/api/telegram/webhook/set", (_req, res) => {
+    res.set("Allow", "POST").status(405).json({ ok: false, error: "use-authenticated-post" });
+  });
+  app.post("/api/telegram/webhook/set", async (req, res) => {
+    let user;
+    try { user = await sdk.authenticateRequest(req); }
+    catch { return res.status(401).json({ ok: false, error: "authentication-required" }); }
+    if (user.role !== "admin") return res.status(403).json({ ok: false, error: "admin-required" });
+    const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (!secret || !/^[A-Za-z0-9_-]{16,256}$/.test(secret) || !process.env.PUBLIC_URL) {
+      return res.status(503).json({ ok: false, error: "webhook-not-configured" });
+    }
     try {
-      // Get the public URL from environment or request
-      const publicUrl = process.env.PUBLIC_URL || `https://${req.get("host")}`;
-      const webhookUrl = `${publicUrl}/api/telegram/webhook`;
+      const publicUrl = new URL(process.env.PUBLIC_URL);
+      if (publicUrl.protocol !== "https:" || publicUrl.username || publicUrl.password) {
+        return res.status(400).json({ ok: false, error: "public-url-must-be-https" });
+      }
+      const webhookUrl = `${publicUrl.origin}/api/telegram/webhook`;
 
       console.log(`[Telegram Webhook] Setting webhook URL: ${webhookUrl}`);
 
@@ -72,6 +96,7 @@ export function setupTelegramWebhook(app: Express) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: webhookUrl,
+          secret_token: secret,
           allowed_updates: ["message"],
         }),
       });

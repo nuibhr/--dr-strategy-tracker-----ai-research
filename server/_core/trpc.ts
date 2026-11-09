@@ -3,6 +3,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import crypto from "node:crypto";
 import type { TrpcContext } from "./context";
+import { isLanScannerRequest } from "./lanAccess";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -11,7 +12,7 @@ const t = initTRPC.context<TrpcContext>().create({
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
-function hasValidServiceToken(authorization: string | undefined): boolean {
+export function hasValidServiceToken(authorization: string | undefined): boolean {
   const expected = process.env.DR_TRACKER_SERVICE_TOKEN?.trim();
   if (!expected || !authorization?.startsWith("Bearer ")) return false;
 
@@ -57,6 +58,21 @@ const requireUser = t.middleware(async opts => {
 });
 
 export const protectedProcedure = t.procedure.use(requireUser);
+
+/** Anonymous access is limited to scanner queries in the explicit LAN mode. */
+export const scannerReadProcedure = t.procedure.use(async opts => {
+  if (opts.type !== "query") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Scanner queries only" });
+  }
+  if (opts.ctx.user) {
+    if (opts.ctx.user.role !== "admin" && opts.ctx.user.accessEnabled === 0) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "บัญชีนี้ถูกปิดสิทธิ์การเข้าดูข้อมูล" });
+    }
+  } else if (!isLanScannerRequest(opts.ctx.req)) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+  }
+  return opts.next();
+});
 
 export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {

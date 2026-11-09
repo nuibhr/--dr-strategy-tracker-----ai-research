@@ -11,6 +11,7 @@
  */
 
 import crypto from "crypto";
+import { requestSettrade } from "./settradeTransport";
 
 export interface PriceData {
   symbol: string;
@@ -137,20 +138,26 @@ interface SettradeQuote {
   totalVolume: number;
 }
 
+export async function fetchSettradeResource(url: string): Promise<Response> {
+  return requestSettrade(async () => {
+    let token = await getAccessToken();
+    const send = () => fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(20_000),
+    });
+    let response = await send();
+    if (response.status === 401) {
+      await response.body?.cancel();
+      token = await getAccessToken(true);
+      response = await send();
+    }
+    return response;
+  });
+}
+
 async function fetchSettradeQuote(symbol: string): Promise<SettradeQuote> {
   const url = `${MARKET_BASE}/quote/${symbol}`;
-  let token = await getAccessToken();
-  let res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (res.status === 401) {
-    console.warn(`[marketDataService] Settrade token rejected for ${symbol}; refreshing once`);
-    token = await getAccessToken(true);
-    res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  }
+  const res = await fetchSettradeResource(url);
 
   if (!res.ok) {
     const err = await res.text();

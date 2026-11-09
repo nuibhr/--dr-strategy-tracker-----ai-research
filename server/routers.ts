@@ -19,12 +19,19 @@ import { marketSummaryRouter } from "./routers/marketSummary";
 import { adminUsersRouter } from "./routers/adminUsers";
 import { integrationsRouter } from "./routers/integrations";
 import { brokerConnectionRouter } from "./routers/brokerConnection";
+import type { User } from "../drizzle/schema";
+
+function sessionUser(user: User | null) {
+  if (!user) return null;
+  const { passwordHash: _passwordHash, ...safe } = user;
+  return safe;
+}
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query(opts => sessionUser(opts.ctx.user)),
     login: publicProcedure
       .input(z.object({
         email: z.string().email(),
@@ -76,7 +83,7 @@ export const appRouter = router({
         ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
         return {
-          user,
+          user: sessionUser(user),
           sessionToken,
         };
       }),

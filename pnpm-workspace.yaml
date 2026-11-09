@@ -1,0 +1,19 @@
+packages:
+  - .
+patchedDependencies:
+  wouter@3.7.1: patches/wouter@3.7.1.patch
+overrides:
+  tailwindcss>nanoid: 3.3.11
+  proxy-addr@<2.0.8: ^2.0.8
+  lodash@<4.18.1: ^4.18.1
+  lodash-es@<4.18.1: ^4.18.1
+  'brace-expansion@>=2 <2.1.6': ^2.1.6
+  dompurify@<3.4.17: ^3.4.17
+onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
+  - esbuild
+  - workerd
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true
+  workerd: true

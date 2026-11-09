@@ -4,7 +4,8 @@
  * and returning daily top picks with entry plans.
  */
 
-import { router, protectedProcedure, adminProcedure } from "../_core/trpc";
+import { router, publicProcedure, scannerReadProcedure, adminProcedure } from "../_core/trpc";
+import { isLanScannerRequest } from "../_core/lanAccess";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { scanDR80 } from "../services/dr80ScannerService";
@@ -20,46 +21,74 @@ interface ScanCache {
 }
 
 let scanCache: ScanCache | null = null;
+let scanInFlight: Promise<ScanCache> | null = null;
+
+async function getScan(forceRefresh: boolean, lanRequest = false) {
+  const today = getTodayDate();
+  // All LAN viewers share results and a running scan. Limit manual refresh to once/5 minutes.
+  if (scanCache?.date === today && (!forceRefresh ||
+    (lanRequest && Date.now() - scanCache.scannedAt.getTime() < 300_000))) {
+    return { ...scanCache, fromCache: true };
+  }
+  if (!scanInFlight) {
+    scanInFlight = scanDR80(4).then(results => {
+      scanCache = { date: today, results, scannedAt: new Date() };
+      return scanCache;
+    }).finally(() => { scanInFlight = null; });
+  }
+  return { ...await scanInFlight, fromCache: false };
+}
 
 function getTodayDate(): string {
   return new Date().toISOString().split("T")[0];
 }
 
+let integrationCache: { expiresAt: number; value: Awaited<ReturnType<typeof loadIntegrationStatus>> } | null = null;
+let integrationInFlight: Promise<Awaited<ReturnType<typeof loadIntegrationStatus>>> | null = null;
+
+async function loadIntegrationStatus() {
+  const market = getMarketDataStatus();
+  const telegramConfigured = Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
+  let sampleQuote: Awaited<ReturnType<typeof fetchPriceData>> | null = null;
+  let marketError: string | null = null;
+  try {
+    sampleQuote = await fetchPriceData("AAPL80");
+  } catch (error) {
+    marketError = error instanceof Error ? error.message : String(error);
+  }
+  return {
+    market,
+    telegram: {
+      configured: telegramConfigured,
+      chatIdConfigured: Boolean(process.env.TELEGRAM_CHAT_ID),
+      botTokenConfigured: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+    },
+    sampleQuote,
+    marketError,
+    ok: market.hasCredentials && sampleQuote?.source === "settrade" && telegramConfigured,
+  };
+}
+
 export const dr80ScannerRouter = router({
+  getAccessMode: publicProcedure.query(({ ctx }) => ({
+    lanPublicScanner: isLanScannerRequest(ctx.req),
+  })),
   /**
    * Get today's top 4 DR/DRx picks.
    * Uses cache if already scanned today.
    */
-  getTodaysPicks: protectedProcedure
+  getTodaysPicks: scannerReadProcedure
     .input(z.object({ forceRefresh: z.boolean().optional() }).optional())
-    .query(async ({ input }) => {
-      const today = getTodayDate();
+    .query(async ({ ctx, input }) => {
       const forceRefresh = input?.forceRefresh ?? false;
 
-      // Return cached results if same day and not forcing refresh
-      if (!forceRefresh && scanCache && scanCache.date === today) {
-        return {
-          picks: scanCache.results,
-          scannedAt: scanCache.scannedAt,
-          fromCache: true,
-          date: today,
-          universe: getDRUniverse().length,
-        };
-      }
-
       try {
-        const results = await scanDR80(4);
-        scanCache = {
-          date: today,
-          results,
-          scannedAt: new Date(),
-        };
-
+        const scan = await getScan(forceRefresh, isLanScannerRequest(ctx.req));
         return {
-          picks: results,
-          scannedAt: scanCache.scannedAt,
-          fromCache: false,
-          date: today,
+          picks: scan.results,
+          scannedAt: scan.scannedAt,
+          fromCache: scan.fromCache,
+          date: scan.date,
           universe: getDRUniverse().length,
         };
       } catch (err) {
@@ -107,30 +136,15 @@ export const dr80ScannerRouter = router({
   /**
    * Check live integration status for Settrade and Telegram.
    */
-  getIntegrationStatus: protectedProcedure.query(async () => {
-    const market = getMarketDataStatus();
-    const telegramConfigured = Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
-
-    let sampleQuote: Awaited<ReturnType<typeof fetchPriceData>> | null = null;
-    let marketError: string | null = null;
-
-    try {
-      sampleQuote = await fetchPriceData("AAPL80");
-    } catch (error) {
-      marketError = error instanceof Error ? error.message : String(error);
+  getIntegrationStatus: scannerReadProcedure.query(async () => {
+    if (integrationCache && Date.now() < integrationCache.expiresAt) return integrationCache.value;
+    if (!integrationInFlight) {
+      integrationInFlight = loadIntegrationStatus().then(value => {
+        integrationCache = { expiresAt: Date.now() + 60_000, value };
+        return value;
+      }).finally(() => { integrationInFlight = null; });
     }
-
-    return {
-      market,
-      telegram: {
-        configured: telegramConfigured,
-        chatIdConfigured: Boolean(process.env.TELEGRAM_CHAT_ID),
-        botTokenConfigured: Boolean(process.env.TELEGRAM_BOT_TOKEN),
-      },
-      sampleQuote,
-      marketError,
-      ok: market.hasCredentials && sampleQuote?.source === "settrade" && telegramConfigured,
-    };
+    return integrationInFlight;
   }),
 
   /**
@@ -139,20 +153,10 @@ export const dr80ScannerRouter = router({
   sendTodaysPicksToTelegram: adminProcedure
     .input(z.object({ forceRefresh: z.boolean().optional() }).optional())
     .mutation(async ({ input }) => {
-      const today = getTodayDate();
       const forceRefresh = input?.forceRefresh ?? false;
-      let results = scanCache?.date === today && !forceRefresh ? scanCache.results : null;
-
-      if (!results) {
-        results = await scanDR80(4);
-        scanCache = {
-          date: today,
-          results,
-          scannedAt: new Date(),
-        };
-      }
-
-      const message = formatDR80ScanMessage(results, today, getDRUniverse().length);
+      const scan = await getScan(forceRefresh);
+      const results = scan.results;
+      const message = formatDR80ScanMessage(results, scan.date, getDRUniverse().length);
       const sent = await sendTelegramMessage(message, "HTML");
 
       if (!sent) {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "../_core/trpc";
 import type { InsertPosition } from "../../drizzle/schema";
 import {
@@ -11,6 +12,21 @@ import {
   createAlert,
   getPositionAlerts,
 } from "../db";
+
+async function requireOwnedPortfolio(userId: number, portfolioId: number) {
+  const portfolios = await getUserPortfolios(userId);
+  if (!portfolios.some(portfolio => portfolio.id === portfolioId && portfolio.userId === userId)) {
+    // Keep missing and foreign IDs indistinguishable to the caller.
+    throw new TRPCError({ code: "NOT_FOUND", message: "Portfolio not found" });
+  }
+}
+
+async function requireOwnedPosition(userId: number, positionId: number) {
+  const position = await getPositionById(positionId);
+  if (!position) throw new TRPCError({ code: "NOT_FOUND", message: "Position not found" });
+  await requireOwnedPortfolio(userId, position.portfolioId);
+  return position;
+}
 
 export const portfolioRouter = router({
   // Portfolio procedures
@@ -51,8 +67,9 @@ export const portfolioRouter = router({
         ratio: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { portfolioId, ...rest } = input;
+      await requireOwnedPortfolio(ctx.user.id, portfolioId);
       return createPosition({
         portfolioId,
         ...rest,
@@ -63,14 +80,15 @@ export const portfolioRouter = router({
 
   getPositions: protectedProcedure
     .input(z.object({ portfolioId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await requireOwnedPortfolio(ctx.user.id, input.portfolioId);
       return getPortfolioPositions(input.portfolioId);
     }),
 
   getPosition: protectedProcedure
     .input(z.object({ positionId: z.number() }))
-    .query(async ({ input }) => {
-      return getPositionById(input.positionId);
+    .query(async ({ ctx, input }) => {
+      return requireOwnedPosition(ctx.user.id, input.positionId);
     }),
 
   updatePosition: protectedProcedure
@@ -85,15 +103,17 @@ export const portfolioRouter = router({
         closedAt: z.date().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { positionId, ...updates } = input;
+      await requireOwnedPosition(ctx.user.id, positionId);
       return updatePosition(positionId, updates as Partial<InsertPosition>);
     }),
 
   // Alert procedures
   getAlerts: protectedProcedure
     .input(z.object({ positionId: z.number() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
+      await requireOwnedPosition(ctx.user.id, input.positionId);
       return getPositionAlerts(input.positionId);
     }),
 
@@ -105,7 +125,8 @@ export const portfolioRouter = router({
         targetPrice: z.string().min(1),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      await requireOwnedPosition(ctx.user.id, input.positionId);
       return createAlert({
         positionId: input.positionId,
         type: input.type,

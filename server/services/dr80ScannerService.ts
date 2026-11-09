@@ -8,7 +8,7 @@
  * Picks top 4 candidates daily.
  */
 
-import { getAccessToken } from "./marketDataService";
+import { fetchSettradeResource } from "./marketDataService";
 import { getDRUniverse } from "./drUniverse";
 
 // ─── DR80 Universe ────────────────────────────────────────────────────────────
@@ -71,12 +71,7 @@ const MARKET_BASE = `https://marketapi.settrade.com/api/marketdata/v3/${BROKER_I
 async function fetchCandles(symbol: string, limit = 100): Promise<CandleData | null> {
   try {
     const url = `${TECH_BASE}/candlesticks?symbol=${symbol}&interval=1d&limit=${limit}`;
-    let token = await getAccessToken();
-    let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (res.status === 401) {
-      token = await getAccessToken(true);
-      res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    }
+    const res = await fetchSettradeResource(url);
     if (!res.ok) return null;
     const data = await res.json() as CandleData;
     return data;
@@ -88,12 +83,7 @@ async function fetchCandles(symbol: string, limit = 100): Promise<CandleData | n
 async function fetchQuote(symbol: string): Promise<{ last: number; percentChange: number } | null> {
   try {
     const url = `${MARKET_BASE}/quote/${symbol}`;
-    let token = await getAccessToken();
-    let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (res.status === 401) {
-      token = await getAccessToken(true);
-      res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    }
+    const res = await fetchSettradeResource(url);
     if (!res.ok) return null;
     return await res.json() as { last: number; percentChange: number };
   } catch {

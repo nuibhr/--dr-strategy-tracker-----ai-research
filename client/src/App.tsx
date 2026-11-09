@@ -1,7 +1,8 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import AppShell from "./components/AppShell";
@@ -20,12 +21,23 @@ import ThaiDividendPortfolio from "./pages/ThaiDividendPortfolio";
 import DividendDashboard from "./pages/DividendDashboard";
 
 function Router() {
+  const [location] = useLocation();
+  const access = trpc.dr80Scanner.getAccessMode.useQuery(undefined, {
+    staleTime: 60_000,
+    retry: false,
+  });
+  if (access.isLoading) {
+    return <div className="min-h-screen bg-[#0d1117] text-white p-6">กำลังเปิดระบบ...</div>;
+  }
+  if (access.data?.lanPublicScanner && ["/", "/dr", "/dr80-scanner"].includes(location)) {
+    return <DR80ScannerPage lanMode />;
+  }
   return (
     <AppShell>
     <Switch>
       <Route path={"/"} component={Dashboard} />
       <Route path={"/dashboard"} component={Dashboard} />
-      <Route path={"/dr"} component={DR80ScannerPage} />
+      <Route path={"/dr"}><DR80ScannerPage /></Route>
       <Route path={"/dr/:id"} component={DrDetail} />
       <Route path={"/dr-picks"} component={DrPicksPage} />
       <Route path={"/watchlist"} component={WatchlistPage} />
@@ -36,7 +48,7 @@ function Router() {
       <Route path={"/admin/new"} component={AdminPage} />
       <Route path={"/admin"} component={AdminPage} />
       <Route path={"/settings"} component={SettingsPage} />
-      <Route path={"/dr80-scanner"} component={DR80ScannerPage} />
+      <Route path={"/dr80-scanner"}><DR80ScannerPage /></Route>
       <Route path={"/manual-plan"} component={AdminPage} />
       <Route path={"/thai-dividend-portfolio"} component={ThaiDividendPortfolio} />
       <Route path={"/dividend-dashboard"} component={DividendDashboard} />

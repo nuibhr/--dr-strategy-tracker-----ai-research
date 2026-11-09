@@ -1,0 +1,75 @@
+DR Strategy Tracker — Source review and verification, 9 November 2026
+
+Scope
+Uncommitted local/LAN changes since HEAD 5073bbc plus security issues found in
+the existing HTTP/tRPC routes. Reviewed against the LAN sharing requirements
+from the conversation and the scanner/dashboard handoff document.
+This is a bounded engineering review, not a penetration-test certification.
+
+Standards
+One actionable P2 finding, resolved:
+- Local admin setup trimmed and reserialized configured passwords/JWT values.
+  Setup now preserves original nonempty assignments and parsed values exactly,
+  supports export/spacing/backslashes, and adds only missing generated settings.
+  Three integration tests use temporary fixture files; actual credentials were not rotated.
+No other high-confidence documented-standard violations found by the separate reviewer.
+
+Spec
+Three actionable findings, resolved:
+- P1: Telegram HTTP endpoints accepted unauthenticated updates and webhook
+  changes. Incoming callbacks now require constant-time verification of the
+  configured Telegram secret header. Webhook setup is admin-only POST with a
+  configured HTTPS destination. GET cannot change it. No real Telegram message
+  or webhook update was sent during testing.
+- P1: Portfolio/position/alert routes accepted other users' IDs. Every affected
+  route now resolves the owning portfolio before read/write. Missing and foreign
+  IDs return NOT_FOUND, including when another admin owns the portfolio.
+- P2: Anonymous raw quote endpoints bypassed the shared scanner budget. These
+  endpoints now require user/service authentication, validate/deduplicate symbols,
+  cap batches at 20 symbols and allow 10 requests/minute per authenticated principal.
+Separate reviewer rechecked the resulting changes and found no introduced blocker.
+
+Additional hardening
+- auth.me and password-login responses no longer return passwordHash.
+- Globally shared DR Pick writes and quote-refresh mutations require admin role.
+- LAN guests retain scanner-only query access; forwarded headers cannot grant it.
+- Expanded Git ignores for private env/certificate/runtime log files.
+- Added check:secrets, including a --staged mode that inspects the exact Git index.
+- Updated compatible runtime dependencies and patched transitive overrides.
+- Preserved the Wouter patch and verified frozen lockfile checks with pinned pnpm 10.4.1.
+- Native install scripts are limited to oxide, esbuild and workerd, not all packages.
+
+Verification
+- TypeScript check: passed.
+- Test suite: 81 tests across 14 files passed.
+- Client/server production build: passed (existing large-chunk warning remains).
+- Local launcher path check: passed.
+- Secret scan: working-tree candidate source and compiled frontend passed.
+- Isolated production server on loopback port 3337: /dr returned 200;
+  anonymous raw quotes returned 401; webhook setup GET returned 405;
+  anonymous admin access returned 403; configured local admin login/session passed;
+  passwordHash was absent from the response. The isolated server was then stopped.
+- No live trades, Telegram sends, database migrations, Fly/Cloudflare deployments,
+  or credential rotations were performed by this review workflow.
+
+Dependency audit: important limits
+Declared production dependency audit: 0 Critical, 0 High, 16 Moderate, 3 Low.
+Full dependency tree including development/test/build tooling: 4 Critical,
+41 High, 65 Moderate, 9 Low at this audit's registry snapshot.
+Remaining high/critical tooling advisories include pnpm, tar, Rollup, picomatch,
+Vite, PostCSS, Vitest, Browserslist, sharp, undici, source-map-js and tinypool.
+These findings were not suppressed or represented as fixed. Broad tooling major
+upgrades are deferred; exposure depends on the affected feature and execution mode.
+The existing Dockerfile installs development dependencies because production
+static serving still loads the shared Vite module. Therefore a production-only
+audit does NOT establish that a built container's complete dependency tree is clean.
+Do not interpret this review as approval to expose development/test servers publicly.
+
+Other remaining limitations
+- HTTP LAN login is not encrypted in transit; use a trusted LAN or configured HTTPS.
+- Database persistence still requires a valid DATABASE_URL; memory fallback loses records.
+- Scanner rankings and dashboard performance formulas retain documented limitations,
+  including Camarilla score bounds and the unweighted sum of per-plan returns.
+- Optional Telegram/Google/ALGO integration tests skip external validation without
+  their test environment settings. Passing tests do not establish live integration health.
+- This commit/push does not verify any automatic hosting deployment triggered by Git.

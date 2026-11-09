@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { protectedProcedure, router } from "../_core/trpc";
+import { adminProcedure, protectedProcedure, router } from "../_core/trpc";
 import * as db from "../db";
 import * as marketDataService from "../services/marketDataService";
 import * as calculationService from "../services/calculationService";
@@ -116,7 +116,7 @@ export const drPicksRouter = router({
   /**
    * Create a new DR pick
    */
-  create: protectedProcedure
+  create: adminProcedure
     .input(CreateDrPickInput)
     .mutation(async ({ input }) => {
       try {
@@ -156,7 +156,7 @@ export const drPicksRouter = router({
   /**
    * Update a DR pick
    */
-  update: protectedProcedure
+  update: adminProcedure
     .input(
       z.object({
         id: z.number(),
@@ -228,7 +228,7 @@ export const drPicksRouter = router({
   /**
    * Delete a DR pick
    */
-  delete: protectedProcedure
+  delete: adminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
       try {
@@ -299,7 +299,7 @@ export const drPicksRouter = router({
   /**
    * Refresh prices for all picks
    */
-  refreshPrices: protectedProcedure.mutation(async () => {
+  refreshPrices: adminProcedure.mutation(async () => {
     try {
       const picks = await db.getAllDrPicks();
       const results = [];

@@ -1,0 +1,286 @@
+DR Strategy Tracker — Logic และหน้าจอสำหรับส่งต่อให้ AI
+ตรวจจาก source code ในเครื่อง วันที่ 19 ตุลาคม 2026
+
+หมายเหตุ security update 9 พฤศจิกายน 2026: เอกสารหลักด้านล่างเป็น snapshot ของสูตรเดิม
+การเพิ่ม/แก้/ลบ/refresh แผน DR Picks รวมและปุ่มเพิ่มแผน เปลี่ยนเป็นสิทธิ์แอดมินเท่านั้น
+พอร์ตส่วนตัวตรวจเจ้าของทุก route และ raw quote HTTP API ต้องล็อกอินหรือใช้ service token
+Telegram callback ต้องมี webhook secret; รายละเอียดอยู่ใน SECURITY-REVIEW-2026-11-09.txt
+สูตรทางเทคนิคและข้อจำกัดการคำนวณด้านล่างไม่ได้ถูกเปลี่ยนในการตรวจความปลอดภัยครั้งนี้
+
+เอกสารนี้อธิบายพฤติกรรมปัจจุบัน และแยกข้อผิดพลาด/ข้อเสนอแก้ไขไว้ท้ายเอกสาร
+ยังไม่มีการแก้สูตรหรือหน้าจอจากการจัดทำเอกสารนี้
+
+1. ขอบเขตของหน้าจอ
+
+- โหมด LAN: /, /dr, /dr80-scanner เปิดหน้า DR Daily Scanner โดยไม่ต้องล็อกอิน
+- /dashboard เปิดแดชบอร์ดติดตาม DR Picks ที่บันทึกแล้ว ต้องล็อกอิน
+- Scanner คือการค้นหาแผนที่น่าสนใจ ส่วน Dashboard คือการติดตามแผนที่คนเลือกบันทึก
+- ผลสแกนไม่ใช่รายการซื้อขายจริง และการบันทึกแผนไม่ได้ส่งคำสั่งซื้อให้โบรกเกอร์
+
+Flow:
+Universe -> Settrade quote/candles -> Indicators -> Score -> Top 4 -> Entry/TP/SL
+-> ผู้ใช้เลือกเพิ่ม DR Picks -> กดรีเฟรชราคา -> Price snapshots -> Status/Performance/Alerts
+
+2. ข้อมูลนำเข้าสำหรับตัวสแกน
+
+- Universe จาก server/services/drUniverse.ts: รายการ DR23 และ DR80 ที่กำหนดไว้
+- DR_UNIVERSE ใช้แทนรายการเดิม; DR_UNIVERSE_EXTRA ใช้เพิ่มรายการ
+- DR_ALLOWED_SUFFIXES ค่าเริ่มต้น 23,80; ตัดรายการซ้ำและเรียงชื่อ
+- ไม่สร้างชื่อหลักทรัพย์ขึ้นเองโดยค่าเริ่มต้น
+- Quote และ daily candles มาจาก Settrade ผ่าน server เท่านั้น
+- ขอ candles 100 แท่ง แต่โค้ดรับข้อมูลเมื่อมี close อย่างน้อย 75 แท่ง
+- คาดว่า arrays เรียงจากเก่าไปใหม่ โค้ดยังไม่ได้ sort/ตรวจความสดและความครบของทุก array อย่างเข้มงวด
+- หากเรียก quote หรือ candles ไม่สำเร็จ ให้ข้าม symbol นั้น ไม่สร้างราคาปลอม
+- จำนวน Universe ไม่เท่ากับจำนวนที่ดึงข้อมูลสำเร็จ
+
+3. ตัวชี้วัด
+
+EMA(n):
+  k = 2 / (n + 1)
+  EMA เริ่มต้น = ค่าเฉลี่ย close n ค่าแรก
+  EMA ถัดไป = close * k + EMA ก่อนหน้า * (1-k)
+  ใช้ n=25,50,75; โค้ดปัดผล EMA เป็น 4 ตำแหน่ง
+
+RSI14:
+  delta = close[i] - close[i-1]
+  gain = max(delta,0); loss = max(-delta,0)
+  avgGain = ค่าเฉลี่ย gain 14 ค่าล่าสุด
+  avgLoss = ค่าเฉลี่ย loss 14 ค่าล่าสุด
+  RSI = 100 - 100/(1 + avgGain/avgLoss)
+  ถ้า avgLoss=0 ให้ RSI=100
+  นี่เป็นค่าเฉลี่ยธรรมดาของ 14 ช่วง ไม่ใช่ Wilder smoothing
+
+MACD(12,26,9):
+  MACD = EMA12 - EMA26
+  Signal = EMA9 ของประวัติ MACD
+  Histogram = MACD - Signal
+  เปรียบเทียบ histogram ปัจจุบันกับค่าที่คำนวณโดยตัด close สุดท้ายออก
+  MACD/Signal/Histogram ปัดเป็น 4 ตำแหน่ง
+
+ATR14:
+  TR = max(high-low, abs(high-prevClose), abs(low-prevClose))
+  ATR14 = ค่าเฉลี่ย TR ล่าสุด 14 ค่า ไม่ใช่ Wilder smoothing
+  A = effectiveATR = max(ATR14, ราคาปัจจุบัน*0.005)
+
+Camarilla:
+  H = max(high[-6:-1]); L = min(low[-6:-1]); C = close[-2]
+  การเขียน slice นี้เว้นแท่งสุดท้าย ไม่ได้ตรวจว่าแท่งสุดท้ายปิดแล้วหรือยัง
+  D = H-L; Pivot = (H+L+C)/3
+  R1=C+D*1.1/12; R2=C+D*1.1/6; R3=C+D*1.1/4; R4=C+D*1.1/2
+  S1=C-D*1.1/12; S2=C-D*1.1/6; S3=C-D*1.1/4; S4=C-D*1.1/2
+  ปัดทุกระดับเป็นทศนิยม 2 ตำแหน่ง
+
+4. การให้คะแนนและจัดอันดับตามโค้ดปัจจุบัน
+
+EMA score (0..3):
+  price > EMA25: +1
+  EMA25 > EMA50: +1
+  EMA50 > EMA75: +1
+  emaAligned = ผ่านครบ 3 ข้อ
+
+RSI score (0..3):
+  40 <= RSI <= 60: 3
+  30 <= RSI < 40: 2
+  60 < RSI <= 70: 1
+  RSI < 30: 1
+  RSI > 70: 0; ไม่ได้ถูกตัดออกจากการจัดอันดับโดยอัตโนมัติ
+
+MACD score (0..3):
+  MACD > Signal: +1
+  Histogram > 0: +1
+  Histogram > Histogram ก่อนหน้า: +1
+  สองเงื่อนไขแรกสะท้อนความสัมพันธ์เดียวกันเป็นหลัก
+
+Camarilla score ตามโค้ด (มีข้อผิดพลาด ดูข้อ 10):
+  price > Pivot: +1
+  S3 <= price <= R3: +1
+  price >= S2 AND price <= S3: +2
+
+TotalScore = 2*emaScore + 2*camScore + rsiScore + macdScore
+UI แสดงฐานคะแนน 20 ตามน้ำหนักที่ประกาศไว้
+เรียง totalScore จากมากไปน้อยและเลือก 4 ตัวแรก
+เมื่อคะแนนเท่ากัน โค้ดไม่ได้ใช้ R/R หรือสภาพคล่องตัดสินเพิ่ม
+ไม่มี minimum score, ไม่มี minimum R/R และไม่มี volume/spread filter
+ไม่มีการบังคับว่า EMA ต้องครบทุกข้อ, MACD ต้องบวก หรือ RSI ต้องไม่เกิน 70
+คะแนนนี้ไม่ใช่ความน่าจะเป็นชนะ และไม่ใช่เปอร์เซ็นต์ความแม่นยำ
+
+5. เลือกจุดเข้าแบบรอรับ (Long)
+
+BuyZoneLow=min(S2,S3), BuyZoneHigh=max(S2,S3)
+ผู้สมัคร Entry: S2, (S2+S3)/2, S3, EMA25, price-0.75*A
+เก็บเฉพาะราคาที่ finite, >0, <= price*1.002 และ >= price*0.92
+
+ให้คะแนน Entry candidate:
+  อยู่ใน Buy Zone: +4
+  ห่าง S3 <= 0.35*A: +2
+  ห่าง EMA25 <= 0.35*A: +2
+  ต่ำกว่าราคาปัจจุบัน 0.5..4%: +2
+  ต่ำกว่า 0..<0.5% และราคาปัจจุบันอยู่ใน Buy Zone: +2
+  ต่ำกว่าเกิน 6%: -1
+เลือกคะแนนสูงสุด ถ้าเท่ากันเลือกราคาสูงกว่า
+ถ้าไม่มี candidate ใช้ price-0.75*A
+หากราคาปัจจุบันอยู่ Buy Zone และ price <= candidate*1.003 ใช้ราคาปัจจุบัน
+Entry = min(ราคาที่เลือก, price) แล้วปัด 2 ตำแหน่ง และไม่น้อยกว่า 0.01
+
+6. Stop Loss / Take Profit
+
+SL_ATR = Entry-1.2*A
+หาก S4 < Entry: SL_CAM = S4-0.1*A; มิฉะนั้น SL_CAM = SL_ATR
+SL = min(SL_ATR, SL_CAM)
+
+TP1 = max(Entry+1.5*A, Pivot, R1) โดยใช้เฉพาะระดับที่ > Entry
+TP2 = max(Entry+2.8*A, R2, R3) โดยใช้เฉพาะระดับที่ > Entry
+ปัดราคาเป็น 2 ตำแหน่ง และไม่น้อยกว่า 0.01
+R/R = (TP1-Entry)/(Entry-SL), ปัด 2 ตำแหน่ง; risk<=0 ให้ 0
+R/R ไม่ได้เป็นเงื่อนไขผ่าน/ไม่ผ่านของตัวสแกน
+ไม่มี time stop, position sizing หรือกติกาขายบางส่วนอัตโนมัติในสูตรนี้
+
+7. หน้า DR Daily Scanner
+
+โครงสร้าง:
+  แถบ LAN และลิงก์ผู้ดูแล
+  หัวข้อ DR Daily Scanner, เวลาสแกนล่าสุด, badge cache, ปุ่ม Scan ใหม่
+  สถานะ Settrade/Telegram และราคา quote ตัวอย่าง AAPL80
+  อธิบายวิธีคัดกรองและจำนวน Universe
+  การ์ด Top 4: อันดับ, symbol, ราคา, การเปลี่ยนแปลง, EMA alignment, คะแนน
+  แผน Entry/TP1/TP2/SL, R/R, เหตุผล
+  ปุ่มขยายดู EMA/RSI/MACD/Camarilla
+
+Visual: พื้นเข้ม #0d1117, การ์ด #1a1f2e, ปุ่มสแกนม่วง, บวก/TP สีเขียว, ลบ/SL สีแดง
+การ์ด 1 คอลัมน์บนหน้าจอเล็ก และ 2 คอลัมน์บนจอใหญ่
+Guest LAN ดูและสแกนได้ แต่ไม่แสดงปุ่มเพิ่ม DR Picks
+บัญชีที่ล็อกอินจึงเพิ่ม DR Picks ได้; แอดมินจึงส่ง Telegram ได้
+ส่ง Telegram เฉพาะเมื่อกดปุ่ม ไม่ได้ส่งทุกครั้งที่ guest เปิดหน้า
+
+Cache/การเรียกข้อมูล:
+  Server เก็บผลสแกนร่วมกันใน memory ตามวัน UTC
+  ขอผลปกติใช้ cache ของวันนั้น; ไม่ได้สแกนใหม่ทุก 5 นาทีอัตโนมัติ
+  กด Scan ใหม่ใน LAN ได้หลังผลรอบก่อนอย่างน้อย 5 นาที
+  หากกำลังสแกนอยู่ ผู้ขอสแกนซ้ำใช้ promise เดียวกัน
+  Client LAN ขอผลล่าสุดทุก 60 วินาที โดยไม่ได้ force scan ใหม่
+  คำขอ Settrade เว้นอย่างน้อย 250ms โดยค่าเริ่มต้น และ retry HTTP 429 ได้อีก 2 ครั้ง
+  สถานะ integration ใช้ cache ร่วมกัน 60 วินาที
+  Settrade live badge ตรวจ source ของ sample quote ไม่ได้ยืนยันอายุข้อมูลทุก symbol
+  Telegram ready หมายถึงมีค่าตั้งครบ ไม่ได้ยืนยันว่ามีการส่งข้อความสำเร็จแล้ว
+
+8. หน้า Dashboard ติดตามแผน
+
+ใช้ DR Picks ที่บันทึกไว้ ไม่ได้ใช้ Top 4 จาก scanner มาคำนวณโดยตรง
+ตารางแผนปัจจุบันเป็นรายการรวม ไม่ได้แยกด้วย userId ใน drPicks.list
+
+ข้อมูลที่โหลด:
+  drPicks.list -> แผน + latest price snapshot + return/RR
+  drPicks.getAlerts -> แผน active ที่ถึง/ใกล้ TP/SL
+  drPicks.getPerformance -> สถิติคำนวณจากแผนที่มีราคา snapshot
+  marketSummary.getIndices -> SET/NASDAQ/S&P500/NIKKEI/HSI ผ่าน Yahoo Finance/Manus Data API
+  ดัชนีตลาดส่วนนี้เป็นคนละแหล่งกับราคา DR จาก Settrade และอาจไม่มีข้อมูลหากไม่ได้ตั้ง Data API
+
+Layout:
+  แถบเมนู Dashboard, DR Picks, Watchlist, Alerts, Performance, History, Settings และส่วนแอดมิน
+  Header: เวลา, badge ตลาดเปิด/ปิด, ปุ่มรีเฟรชราคา, การแจ้งเตือน, ผู้ใช้
+  KPI: Active Picks, Hit TP, Hit SL, Near TP, Near SL, Win Rate
+  สรุป Average Return, Total Closed Picks และผลตอบแทนรวม
+  การ์ดแผน active สูงสุด 8 ตัว
+  ตาราง All Picks พร้อมค้นหาชื่อ/symbol และกรองสถานะ
+  แผงดัชนีตลาดและ Alerts สูงสุด 8 รายการ
+
+กดรีเฟรชราคา:
+  ดึง quote Settrade ของ DR Picks แต่ละตัว -> บันทึก price snapshot
+  -> คำนวณ status ใหม่ -> อัปเดตแผนและบันทึก STATUS_CHANGED event เมื่อสถานะเปลี่ยน
+  -> โหลดรายการ/Alerts/Performance ใหม่
+
+ราคาบน Dashboard เป็น snapshot ล่าสุด ไม่ได้เรียกสดทุกวินาที
+getLatestPriceSnapshot ตัด source mock/legacy_seed/unknown ออก แต่ยังไม่มีเงื่อนไขอายุสูงสุด
+ไม่มี snapshot ให้แสดง null/ขีด ไม่แทนด้วยราคา Entry หรือราคาจำลอง
+ตัวเลขนาฬิกาวิ่งทุกวินาทีไม่ได้หมายความว่าราคาถูกอัปเดตทุกวินาที
+
+9. สถานะและสูตรสถิติของ Dashboard
+
+ReturnPercent = (currentPrice-Entry)/Entry*100
+DistanceToTarget = (target-currentPrice)/currentPrice*100
+Dashboard R/R ใช้ TP1 เช่นเดียวกับ Scanner
+
+ตรวจ status ตามลำดับ:
+  closedAt มีค่า -> Closed
+  isActive=false -> Watchlist
+  currentPrice >= TP2 -> Hit TP2
+  currentPrice >= TP1 -> Hit TP1
+  currentPrice <= SL -> Hit SL
+  ห่าง TP1 หรือ TP2 ด้านล่าง มากกว่า 0 และไม่เกิน 2% ของราคาปัจจุบัน -> Near TP
+  (currentPrice-SL)/currentPrice*100 อยู่ในช่วง >0 ถึง 2 -> Near SL
+  ที่เหลือ -> Waiting
+
+สถานะถึง TP/SL เป็นผลเทียบราคาล่าสุด ไม่ใช่หลักฐานว่ามีการซื้อ/ขายจริง
+ระบบไม่ได้เก็บการแตะ TP/SL แบบถาวรจากทุก tick จึงอาจเปลี่ยนสถานะเมื่อราคากลับทิศ
+
+สูตร performance ที่ใช้อยู่จริง:
+  S = แผนทั้งหมดที่มี latest snapshot และแปลงราคาเป็นตัวเลขได้
+  totalReturn = ผลรวม ReturnPercent ของทุกแผนใน S
+  N = จำนวนแผนใน S ที่ isActive=true
+  winCount = จำนวนทุกแผนใน S ที่ ReturnPercent>0
+  winRate = N>0 ? winCount/N*100 : 0
+  averageReturn = N>0 ? totalReturn/N : 0
+  pricedPicks = N
+
+Dashboard ซ่อนค่าเฉลี่ย/ผลตอบแทนรวม/Win Rate เมื่อ pricedPicks=0
+Active Picks/Hit TP/Hit SL/Closed ใน UI นับจากรายการแผนและ status ที่บันทึกไว้
+แต่ getPerformance และ Alerts คำนวณ status จากราคาล่าสุดอีกครั้ง จึงอาจไม่ตรงกันก่อนรีเฟรช
+
+10. จุดที่ AI ตัวถัดไปต้องทราบก่อนทำซ้ำหรือแก้ระบบ
+
+A. เงื่อนไขโบนัส Camarilla กลับด้าน
+  โดยทั่วไป S3<=S2 แต่ code ให้โบนัสเมื่อ price>=S2 && price<=S3
+  ถ้าระดับไม่เท่ากัน เงื่อนไขนี้ไม่ผ่าน
+  หากแก้ ให้ใช้ min(S2,S3)<=price<=max(S2,S3) ให้สอดคล้องกับตัวเลือก Entry
+  คำอธิบายก่อนหน้านี้ที่ใช้ S2<=price<=S3 เป็น Buy Zone จึงต้องแก้ด้วย
+  ข้อความ reason ที่ใช้ camScore>=2 สรุปว่าใกล้ S3 ก็ไม่ได้พิสูจน์ความใกล้ S3 เสมอไป
+
+B. คะแนนไม่ใช่ตัวกรองคุณภาพขั้นต่ำ
+  ปัจจุบันจัดอันดับ Top 4 แม้ไม่มีหุ้นที่ตรงเงื่อนไขครบ
+  เกณฑ์ score>=12 หรือ R/R>=1.5 ที่เคยพูดถึงเป็นข้อเสนอ ไม่ได้บังคับใน code
+  หากต้องการเพิ่ม threshold ต้องระบุว่าเป็นพฤติกรรมใหม่และประเมินผลย้อนหลัง
+
+C. ผลตอบแทนรวมยังไม่ใช่กำไรสุทธิของพอร์ต
+  ปัจจุบันเป็นการบวกเปอร์เซ็นต์รายแผน ไม่ได้ถ่วงน้ำหนักด้วยจำนวนหน่วย/เงินลงทุน
+  ไม่มีราคาซื้อขายที่ fill จริง, ค่าธรรมเนียม หรือผลกำไรที่ปิดสถานะแล้วประกอบสูตรนี้
+  หากต้องการ portfolio return ต้องมี transactions/quantity/cost basis/realized และ unrealized P&L
+  ไม่ควรนำผลรวมเปอร์เซ็นต์ไปตั้งชื่อว่า "กำไรสุทธิรวม"
+
+D. Win Rate และ Average Return มีประชากรตัวเศษ/ตัวหารไม่ตรงกัน
+  ตัวเศษรวมแผนทั้ง S แต่ตัวหารนับเฉพาะ active ทำให้ตัวเลขเพี้ยนหรือ Win Rate เกิน 100% ได้
+  แนวทางแก้: เลือกกลุ่มเดียวกันทั้งตัวเศษและตัวหาร
+  ถ้าต้องการอัตราชนะของการเทรด ควรใช้รายการที่ปิดจริง และนิยาม breakeven ให้ชัดเจน
+
+E. ความสดของข้อมูลและความถูกต้องของแผน
+  ตรวจอายุ quote/candles/snapshot, เรียงเวลา, ตรวจ array ยาวเท่ากันและตัวเลข finite
+  แยกแท่งที่กำลังก่อตัวออกด้วย timestamp/session ไม่ใช่ตัดแท่งสุดท้ายโดยสมมติ
+  ตรวจ tick size และ SL<Entry<TP1<=TP2 หลังปัดราคา
+  การปัด 2 ตำแหน่งทุก symbol ยังไม่ได้ยืนยัน tick size ที่ถูกต้องทุกช่วงราคา
+  badge ตลาดเปิดของ Dashboard ใช้เวลาจันทร์–ศุกร์ 09:00–ก่อน17:00 ของ browser
+  ไม่ได้ใช้ปฏิทินตลาดไทย ช่วงพัก วันหยุด หรือ session ของแต่ละหลักทรัพย์
+
+F. การคงอยู่ของข้อมูลและสิทธิ์
+  ตอนจัดทำเอกสาร local ยังไม่มี DATABASE_URL; สมาชิก/แผน/snapshots ใช้ memory fallback
+  ADMIN_EMAIL/ADMIN_PASSWORD/JWT_SECRET เก็บใน .env แต่ records ไม่คงอยู่หลัง restart หากไม่มี DB
+  อย่าฝัง credentials/JWT/Settrade secrets ใน client หรือเอกสารส่งต่อ
+  อย่าถือว่ารายการแผนแยกตามผู้ใช้แล้ว เพราะ query ปัจจุบันอ่านแผนรวม
+
+11. Source files สำหรับ AI ตัวถัดไป
+
+server/services/drUniverse.ts                 — Universe
+server/services/dr80ScannerService.ts         — Indicators, scoring, Entry/TP/SL, ranking
+server/services/marketDataService.ts          — Settrade authentication/quote
+server/services/settradeTransport.ts          — Shared pacing/retry
+server/routers/dr80Scanner.ts                 — Scanner API/cache/access/Telegram action
+client/src/pages/DR80Scanner.tsx              — Scanner UI
+client/src/pages/Dashboard.tsx                — Dashboard UI
+server/routers/drPicks.ts                     — Saved picks, refresh, alerts, performance
+server/services/calculationService.ts         — Status/return/performance formulas
+server/db.ts                                 — Data storage/snapshots/memory fallback
+server/routers/marketSummary.ts               — External market indices
+client/src/App.tsx                           — Routes and LAN scanner entry
+
+คำสั่งส่งต่อ:
+ใช้เอกสารนี้กับ source files ที่ระบุเพื่ออธิบายหรือสร้างระบบต่อ โดยแยก "พฤติกรรมปัจจุบัน"
+ออกจาก "รายการที่ต้องแก้" อย่างชัดเจน ห้ามแอบเปลี่ยนสูตร ห้ามสร้างราคาหรือผลตอบแทนขึ้นเอง
+และห้ามอ้างว่าผลสแกน/แผนที่บันทึกเป็นการซื้อขายที่เกิดขึ้นจริง

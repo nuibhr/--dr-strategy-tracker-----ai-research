@@ -18,6 +18,7 @@ import { getDRPrice } from "../routers/algoEq";
 import { scanDR80, DR80ScanResult } from "../services/dr80ScannerService";
 import { sendTelegramMessage, formatDR80ScanMessage } from "../services/telegramService";
 import { fetchMultiplePrices, getMarketDataStatus } from "../services/marketDataService";
+import { createMarketDataAccess, parsePriceSymbols } from "./marketDataAccess";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -90,11 +91,12 @@ async function startServer() {
     });
   });
 
-  app.get("/api/dr/price/:symbol", async (req, res) => {
+  const marketDataAccess = createMarketDataAccess();
+  app.get("/api/dr/price/:symbol", marketDataAccess, async (req, res) => {
     try {
       const symbol = req.params.symbol.trim().toUpperCase();
-      if (!symbol) {
-        return res.status(400).json({ ok: false, error: "symbol-required" });
+      if (!/^[A-Z0-9]{1,20}$/.test(symbol)) {
+        return res.status(400).json({ ok: false, error: "invalid-symbol" });
       }
 
       const price = await getDRPrice(symbol);
@@ -107,21 +109,17 @@ async function startServer() {
       console.error("[API] Error fetching DR price:", error);
       res.status(500).json({
         ok: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: "market-data-unavailable",
         timestamp: new Date().toISOString(),
       });
     }
   });
 
-  app.get("/api/dr/prices", async (req, res) => {
+  app.get("/api/dr/prices", marketDataAccess, async (req, res) => {
     try {
-      const symbols = String(req.query.symbols ?? "")
-        .split(",")
-        .map(symbol => symbol.trim().toUpperCase())
-        .filter(Boolean);
-
-      if (symbols.length === 0) {
-        return res.status(400).json({ ok: false, error: "symbols-required" });
+      const symbols = parsePriceSymbols(req.query.symbols);
+      if (!symbols) {
+        return res.status(400).json({ ok: false, error: "provide-1-to-20-valid-symbols" });
       }
 
       const prices = await fetchMultiplePrices(symbols);
@@ -143,7 +141,7 @@ async function startServer() {
       console.error("[API] Error fetching DR prices:", error);
       res.status(500).json({
         ok: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: "market-data-unavailable",
         timestamp: new Date().toISOString(),
       });
     }
@@ -369,15 +367,28 @@ async function startServer() {
   }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  const host = process.env.HOST || "0.0.0.0";
+  const port = process.env.LAN_PUBLIC_SCANNER === "true"
+    ? preferredPort
+    : await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  server.listen(port, () => {
+  server.on("error", error => {
+    console.error("[server] Unable to listen:", error.message);
+    process.exit(1);
+  });
+  server.listen(port, host, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    if (process.env.LAN_PUBLIC_SCANNER === "true") {
+      console.log(`[LAN] Scanner sharing enabled on ${host}:${port}. Admin actions still require login.`);
+    }
   });
 }
 
-startServer().catch(console.error);
+startServer().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
